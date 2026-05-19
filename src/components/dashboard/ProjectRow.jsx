@@ -40,13 +40,6 @@ export function ProjectRow({ counters, project }) {
 
       <div className="flex items-center gap-4">
         <ProgressBar value={project.completion} />
-        <button
-          type="button"
-          className="grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
-          aria-label={`Opcoes de ${project.name}`}
-        >
-          <Icon name="more" className="h-4 w-4" />
-        </button>
       </div>
     </article>
   )

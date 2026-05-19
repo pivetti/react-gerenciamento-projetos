@@ -1,21 +1,89 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-import { loadDashboardData } from './services/api'
+import {
+  createActivity,
+  createCost,
+  createParticipant,
+  createProject,
+  createResource,
+  createRisk,
+  deleteActivity,
+  deleteCost,
+  deleteParticipant,
+  deleteProject,
+  deleteResource,
+  deleteRisk,
+  loadDashboardData,
+  updateActivity,
+  updateCost,
+  updateParticipant,
+  updateProject,
+  updateResource,
+  updateRisk,
+} from './services/api'
 import { ActionToolbar } from './components/dashboard/ActionToolbar'
+import { EntityCrudView } from './components/crud/EntityCrudView'
 import { DashboardHeader } from './components/dashboard/DashboardHeader'
 import { EntityOverview } from './components/dashboard/EntityOverview'
+import { ProjectFormModal } from './components/dashboard/ProjectFormModal'
 import { ProjectSection } from './components/dashboard/ProjectSection'
 import { RecommendedCategories } from './components/dashboard/RecommendedCategories'
 import { Sidebar } from './components/dashboard/Sidebar'
+import { entityCrudConfigs } from './utils/entityCrudConfig'
 import { projectBucket } from './utils/format'
+import {
+  defaultHiddenSections,
+  defaultProjectFilters,
+  filterProjects,
+  getSortLabel,
+  hasActiveProjectFilters,
+  hasHiddenSections,
+  sortProjects,
+} from './utils/projectFilters'
 
 const emptyDashboard = {
+  users: [],
   projects: [],
   participants: [],
   activities: [],
   resources: [],
   costs: [],
   risks: [],
+}
+
+const hiddenSectionsStorageKey = 'projecthub:hidden-sections'
+
+const crudActions = {
+  projects: {
+    create: createProject,
+    update: updateProject,
+    delete: deleteProject,
+  },
+  activities: {
+    create: createActivity,
+    update: updateActivity,
+    delete: deleteActivity,
+  },
+  participants: {
+    create: createParticipant,
+    update: updateParticipant,
+    delete: deleteParticipant,
+  },
+  resources: {
+    create: createResource,
+    update: updateResource,
+    delete: deleteResource,
+  },
+  costs: {
+    create: createCost,
+    update: updateCost,
+    delete: deleteCost,
+  },
+  risks: {
+    create: createRisk,
+    update: updateRisk,
+    delete: deleteRisk,
+  },
 }
 
 const viewText = {
@@ -186,6 +254,20 @@ function groupProjects(projects) {
   )
 }
 
+function readHiddenSections() {
+  try {
+    const savedValue = localStorage.getItem(hiddenSectionsStorageKey)
+
+    if (!savedValue) {
+      return defaultHiddenSections
+    }
+
+    return { ...defaultHiddenSections, ...JSON.parse(savedValue) }
+  } catch {
+    return defaultHiddenSections
+  }
+}
+
 function Notice({ isDemo, errors }) {
   if (!errors.length) {
     return null
@@ -201,31 +283,103 @@ function Notice({ isDemo, errors }) {
   )
 }
 
-function ProjectsBoard({ dashboard, loading, onRefresh, onSelectView, projects }) {
+function ProjectsBoard({
+  activeToolbarMenu,
+  dashboard,
+  filters,
+  hiddenSections,
+  loading,
+  onClearFilters,
+  onClearToolbarState,
+  onFilterChange,
+  onMenuChange,
+  onNewProject,
+  onRefresh,
+  onRestoreView,
+  onSelectView,
+  onSortChange,
+  onToggleSection,
+  projects,
+  sortOption,
+}) {
   const groupedProjects = groupProjects(projects)
   const categories = buildCategories(dashboard)
   const getCounters = (project) => buildProjectCounters(project, dashboard)
+  const allProjectSectionsHidden =
+    hiddenSections.todo && hiddenSections.active && hiddenSections.completed
+  const summary = {
+    activities: dashboard.activities.length,
+    costs: dashboard.costs.length,
+    participants: dashboard.participants.length,
+    projects: dashboard.projects.length,
+    resources: dashboard.resources.length,
+    risks: dashboard.risks.length,
+  }
 
   return (
     <div className="space-y-7">
-      <RecommendedCategories categories={categories} onSelect={onSelectView} />
-      <ActionToolbar loading={loading} onRefresh={onRefresh} />
-      <ProjectSection
-        getCounters={getCounters}
-        projects={groupedProjects.todo}
-        showAddRow
-        title="TODO"
+      {!hiddenSections.categories ? (
+        <RecommendedCategories categories={categories} onSelect={onSelectView} />
+      ) : null}
+      <ActionToolbar
+        activeMenu={activeToolbarMenu}
+        filters={filters}
+        filtersActive={hasActiveProjectFilters(filters)}
+        hiddenSections={hiddenSections}
+        loading={loading}
+        onClearFilters={onClearFilters}
+        onClearToolbarState={onClearToolbarState}
+        onFilterChange={onFilterChange}
+        onMenuChange={onMenuChange}
+        onNewProject={onNewProject}
+        onRefresh={onRefresh}
+        onRestoreView={onRestoreView}
+        onSortChange={onSortChange}
+        onToggleSection={onToggleSection}
+        sortLabel={getSortLabel(sortOption)}
+        sortOption={sortOption}
+        summary={summary}
+        viewChanged={hasHiddenSections(hiddenSections)}
       />
-      <ProjectSection
-        getCounters={getCounters}
-        projects={groupedProjects.active}
-        title="PROJETOS ATIVOS"
-      />
-      <ProjectSection
-        getCounters={getCounters}
-        projects={groupedProjects.completed}
-        title="CONCLUIDOS"
-      />
+
+      {allProjectSectionsHidden ? (
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-white/70 px-5 py-8 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400">
+          <p className="font-medium text-zinc-700 dark:text-zinc-200">Todas as secoes estao ocultas.</p>
+          <button
+            type="button"
+            onClick={onRestoreView}
+            className="mt-3 inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            Restaurar visualizacao
+          </button>
+        </div>
+      ) : (
+        <>
+          {!hiddenSections.todo ? (
+            <ProjectSection
+              getCounters={getCounters}
+              onNewProject={onNewProject}
+              projects={groupedProjects.todo}
+              showAddRow
+              title="TODO"
+            />
+          ) : null}
+          {!hiddenSections.active ? (
+            <ProjectSection
+              getCounters={getCounters}
+              projects={groupedProjects.active}
+              title="PROJETOS ATIVOS"
+            />
+          ) : null}
+          {!hiddenSections.completed ? (
+            <ProjectSection
+              getCounters={getCounters}
+              projects={groupedProjects.completed}
+              title="CONCLUIDOS"
+            />
+          ) : null}
+        </>
+      )}
     </div>
   )
 }
@@ -246,6 +400,12 @@ function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [search, setSearch] = useState('')
   const [theme, setTheme] = useState('light')
+  const [projectFormOpen, setProjectFormOpen] = useState(false)
+  const [projectSubmitting, setProjectSubmitting] = useState(false)
+  const [projectFilters, setProjectFilters] = useState(defaultProjectFilters)
+  const [projectSortOption, setProjectSortOption] = useState('none')
+  const [hiddenSections, setHiddenSections] = useState(readHiddenSections)
+  const [activeToolbarMenu, setActiveToolbarMenu] = useState(null)
   const [dashboard, setDashboard] = useState(emptyDashboard)
   const [requestState, setRequestState] = useState({
     loading: true,
@@ -276,6 +436,42 @@ function App() {
         loadedAt: null,
       })
     }
+  }
+
+  async function handleCreateProject(payload) {
+    setProjectSubmitting(true)
+
+    try {
+      await createProject(payload)
+      await refreshDashboard()
+      setProjectFormOpen(false)
+    } finally {
+      setProjectSubmitting(false)
+    }
+  }
+
+  function handleFilterChange(field, value) {
+    setProjectFilters((currentFilters) => ({ ...currentFilters, [field]: value }))
+  }
+
+  function handleClearFilters() {
+    setProjectFilters(defaultProjectFilters)
+  }
+
+  function handleClearToolbarState() {
+    setProjectFilters(defaultProjectFilters)
+    setProjectSortOption('none')
+  }
+
+  function handleToggleSection(section) {
+    setHiddenSections((currentSections) => ({
+      ...currentSections,
+      [section]: !currentSections[section],
+    }))
+  }
+
+  function handleRestoreView() {
+    setHiddenSections(defaultHiddenSections)
   }
 
   useEffect(() => {
@@ -319,11 +515,26 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(hiddenSectionsStorageKey, JSON.stringify(hiddenSections))
+    } catch {
+      // A visualizacao continua funcionando mesmo se o navegador bloquear localStorage.
+    }
+  }, [hiddenSections])
+
   const currentView = viewText[activeView] || viewText.dashboard
   const navItems = useMemo(() => buildNavItems(dashboard), [dashboard])
   const visibleProjects = useMemo(
-    () => dashboard.projects.filter((project) => matchesSearch(project, search)),
-    [dashboard.projects, search],
+    () =>
+      sortProjects(
+        filterProjects(
+          dashboard.projects.filter((project) => matchesSearch(project, search)),
+          projectFilters,
+        ),
+        projectSortOption,
+      ),
+    [dashboard.projects, projectFilters, projectSortOption, search],
   )
 
   const entityFields = {
@@ -338,6 +549,16 @@ function App() {
     activeView in entityFields
       ? filterEntities(dashboard[activeView], search, entityFields[activeView])
       : []
+  const crudConfig = entityCrudConfigs[activeView]
+  const crudActionsForView = crudActions[activeView]
+  const crudItems = activeView === 'projects' ? visibleProjects : entityItems
+  const crudContext = {
+    activities: dashboard.activities,
+    participants: dashboard.participants,
+    projects: dashboard.projects,
+    resources: dashboard.resources,
+    users: dashboard.users,
+  }
 
   const isDark = theme === 'dark'
 
@@ -365,13 +586,37 @@ function App() {
 
           <Notice errors={requestState.errors} isDemo={requestState.isDemo} />
 
-          {activeView === 'dashboard' || activeView === 'projects' ? (
+          {activeView === 'dashboard' ? (
             <ProjectsBoard
+              activeToolbarMenu={activeToolbarMenu}
               dashboard={dashboard}
+              filters={projectFilters}
+              hiddenSections={hiddenSections}
               loading={requestState.loading}
+              onClearFilters={handleClearFilters}
+              onClearToolbarState={handleClearToolbarState}
+              onFilterChange={handleFilterChange}
+              onMenuChange={setActiveToolbarMenu}
+              onNewProject={() => setProjectFormOpen(true)}
               onRefresh={refreshDashboard}
+              onRestoreView={handleRestoreView}
               onSelectView={setActiveView}
+              onSortChange={setProjectSortOption}
+              onToggleSection={handleToggleSection}
               projects={visibleProjects}
+              sortOption={projectSortOption}
+            />
+          ) : crudConfig ? (
+            <EntityCrudView
+              config={crudConfig}
+              context={crudContext}
+              errors={requestState.errors}
+              items={crudItems}
+              loading={requestState.loading}
+              onCreate={crudActionsForView.create}
+              onDelete={crudActionsForView.delete}
+              onRefresh={refreshDashboard}
+              onUpdate={crudActionsForView.update}
             />
           ) : activeView === 'settings' ? (
             <SettingsPanel />
@@ -380,6 +625,15 @@ function App() {
           )}
         </div>
       </main>
+
+      {projectFormOpen ? (
+        <ProjectFormModal
+          onClose={() => setProjectFormOpen(false)}
+          onSubmit={handleCreateProject}
+          open={projectFormOpen}
+          submitting={projectSubmitting}
+        />
+      ) : null}
       </div>
     </div>
   )

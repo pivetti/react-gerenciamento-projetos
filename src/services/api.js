@@ -7,6 +7,7 @@ export const API_BASE_URL = (
 export const API_DISPLAY_URL = API_BASE_URL
 
 const ENDPOINTS = {
+  users: '/usuarios',
   projects: '/projetos',
   participants: '/participantes',
   activities: '/atividades',
@@ -16,6 +17,22 @@ const ENDPOINTS = {
 }
 
 const demoData = {
+  users: [
+    {
+      id: '1',
+      nome: 'Ana Souza',
+      email: 'ana@example.com',
+      telefone: '11999990000',
+      perfil: 'GERENTE_PROJETO',
+    },
+    {
+      id: '2',
+      nome: 'Bruno Lima',
+      email: 'bruno@example.com',
+      telefone: '11888880000',
+      perfil: 'ANALISTA',
+    },
+  ],
   projects: [
     {
       id: '1',
@@ -140,6 +157,7 @@ const demoData = {
 
 function emptyData() {
   return {
+    users: [],
     projects: [],
     participants: [],
     activities: [],
@@ -185,22 +203,69 @@ function extractCollection(payload) {
   return firstArray || []
 }
 
-async function fetchCollection(path) {
+async function apiRequest(path, options = {}) {
+  const { body, method = 'GET' } = options
+  const headers = { Accept: 'application/json' }
+
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Accept: 'application/json' },
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   const payload = await parseResponse(response)
 
   if (!response.ok) {
-    const detail =
-      payload && typeof payload === 'object'
-        ? payload.message || payload.error || payload.detail
-        : payload
+    const detail = getErrorDetail(payload)
 
     throw new Error(`${response.status} em ${path}${detail ? `: ${detail}` : ''}`)
   }
 
-  return extractCollection(payload)
+  return payload
+}
+
+async function fetchCollection(path) {
+  return extractCollection(await apiRequest(path))
+}
+
+function getErrorDetail(payload) {
+  if (!payload) {
+    return ''
+  }
+
+  if (typeof payload === 'string') {
+    return payload
+  }
+
+  if (typeof payload !== 'object') {
+    return ''
+  }
+
+  if (payload.message || payload.error || payload.detail) {
+    return payload.message || payload.error || payload.detail
+  }
+
+  const validationErrors = payload.errors || payload.fieldErrors
+
+  if (Array.isArray(validationErrors)) {
+    return validationErrors
+      .map((item) => item.defaultMessage || item.message || String(item))
+      .join(' ')
+  }
+
+  if (validationErrors && typeof validationErrors === 'object') {
+    return Object.entries(validationErrors)
+      .map(([field, message]) => {
+        const value = Array.isArray(message) ? message.join(', ') : message
+        return `${field}: ${value}`
+      })
+      .join(' ')
+  }
+
+  return ''
 }
 
 function toStringValue(value) {
@@ -233,23 +298,51 @@ function withId(item, fallback) {
   return toStringValue(item.id) || toStringValue(item.codigo) || fallback
 }
 
-function normalizeProject(item, index) {
+function normalizeUser(item, index) {
   return {
+    ...item,
+    id: withId(item, `usuario-${index}`),
+    name: item.nome || item.name || 'Usuario sem nome',
+    email: item.email || '',
+    phone: item.telefone || '',
+    profile: item.perfil || null,
+  }
+}
+
+function normalizeProject(item, index) {
+  const budget = toNumberValue(item.orcamentoPrevisto ?? item.valorOrcamento)
+  const completion = toNumberValue(item.percentualConcluido) || 0
+
+  return {
+    ...item,
     id: withId(item, `projeto-${index}`),
+    nome: item.nome || item.name || item.titulo || 'Projeto sem nome',
+    descricao: item.descricao || item.description || '',
+    prioridade: item.prioridade || item.priority || null,
+    dataInicio: item.dataInicio || item.startDate || null,
+    dataFim: item.dataFim || item.endDate || null,
+    orcamentoPrevisto: budget,
+    percentualConcluido: completion,
     name: item.nome || item.name || item.titulo || 'Projeto sem nome',
     description: item.descricao || item.description || item.objetivo || '',
     status: item.status || null,
-    priority: item.prioridade || null,
+    priority: item.prioridade || item.priority || null,
     startDate: item.dataInicio || item.startDate || null,
     endDate: item.dataFim || item.endDate || null,
-    budget: toNumberValue(item.orcamentoPrevisto || item.valorOrcamento),
-    completion: toNumberValue(item.percentualConcluido) || 0,
+    budget,
+    completion,
   }
 }
 
 function normalizeParticipant(item, index) {
   return {
+    ...item,
     id: withId(item, `participante-${index}`),
+    usuarioId: item.usuarioId ?? null,
+    projetoId: item.projetoId ?? null,
+    funcaoNoProjeto: item.funcaoNoProjeto || item.funcao || item.role || '',
+    papelAcesso: item.papelAcesso || item.accessRole || '',
+    ativo: item.ativo ?? item.active ?? null,
     userName: item.usuarioNome || item.userName || item.nomeUsuario || 'Participante sem nome',
     projectName: item.projetoNome || item.projectName || '',
     role: item.funcaoNoProjeto || item.funcao || item.role || '',
@@ -259,41 +352,87 @@ function normalizeParticipant(item, index) {
 }
 
 function normalizeActivity(item, index) {
+  const completion = toNumberValue(item.percentualConclusao) || 0
+  const title = item.titulo || item.title || item.nome || 'Atividade sem titulo'
+  const description = item.descricao || item.description || ''
+  const priority = item.prioridade || item.priority || null
+  const startDate = item.dataInicio || item.startDate || null
+  const dueDate = item.prazo || item.dueDate || item.dataLimite || null
+  const endDate = item.dataConclusao || item.dataFim || item.endDate || null
+
   return {
+    ...item,
     id: withId(item, `atividade-${index}`),
-    title: item.titulo || item.title || item.nome || 'Atividade sem titulo',
-    description: item.descricao || item.description || '',
+    titulo: title,
+    descricao: description,
+    prioridade: priority,
+    dataInicio: startDate,
+    prazo: dueDate,
+    dataConclusao: endDate,
+    percentualConclusao: completion,
+    projetoId: item.projetoId ?? null,
+    responsavelId: item.responsavelId ?? null,
+    title,
+    description,
     status: item.status || null,
-    priority: item.prioridade || item.priority || null,
-    startDate: item.dataInicio || item.startDate || null,
-    dueDate: item.prazo || item.dueDate || item.dataLimite || null,
-    endDate: item.dataConclusao || item.dataFim || item.endDate || null,
+    priority,
+    startDate,
+    dueDate,
+    endDate,
     projectName: item.projetoNome || item.projectName || '',
     responsibleName: item.responsavelNome || item.participantName || '',
-    completion: toNumberValue(item.percentualConclusao) || 0,
+    completion,
   }
 }
 
 function normalizeResource(item, index) {
+  const quantity = toNumberValue(item.quantidade)
+  const unitCost = toNumberValue(item.custoUnitario)
+  const name = item.nome || item.name || 'Recurso sem nome'
+  const type = item.tipo || item.type || ''
+  const description = item.descricao || item.description || ''
+
   return {
+    ...item,
     id: withId(item, `recurso-${index}`),
-    name: item.nome || item.name || 'Recurso sem nome',
-    type: item.tipo || item.type || '',
-    description: item.descricao || item.description || '',
-    quantity: toNumberValue(item.quantidade),
-    unitCost: toNumberValue(item.custoUnitario),
+    nome: name,
+    tipo: type,
+    descricao: description,
+    quantidade: quantity,
+    custoUnitario: unitCost,
+    projetoId: item.projetoId ?? null,
+    name,
+    type,
+    description,
+    quantity,
+    unitCost,
     projectName: item.projetoNome || item.projectName || '',
   }
 }
 
 function normalizeCost(item, index) {
+  const plannedValue = toNumberValue(item.valorPrevisto)
+  const realValue = toNumberValue(item.valorReal)
+  const description = item.descricao || item.description || 'Custo sem descricao'
+  const type = item.tipo || item.type || ''
+  const date = item.dataLancamento || item.data || null
+
   return {
+    ...item,
     id: withId(item, `custo-${index}`),
-    description: item.descricao || item.description || 'Custo sem descricao',
-    type: item.tipo || item.type || '',
-    plannedValue: toNumberValue(item.valorPrevisto),
-    realValue: toNumberValue(item.valorReal),
-    date: item.dataLancamento || item.data || null,
+    descricao: description,
+    tipo: type,
+    valorPrevisto: plannedValue,
+    valorReal: realValue,
+    dataLancamento: date,
+    projetoId: item.projetoId ?? null,
+    atividadeId: item.atividadeId ?? null,
+    recursoId: item.recursoId ?? null,
+    description,
+    type,
+    plannedValue,
+    realValue,
+    date,
     projectName: item.projetoNome || item.projectName || '',
     activityTitle: item.atividadeTitulo || item.activityName || '',
     resourceName: item.recursoNome || item.resourceName || '',
@@ -301,21 +440,39 @@ function normalizeCost(item, index) {
 }
 
 function normalizeRisk(item, index) {
+  const probability = toNumberValue(item.probabilidade)
+  const impact = toNumberValue(item.impacto)
+  const criticality = toNumberValue(item.criticidade)
+  const title = item.titulo || item.title || item.nome || 'Risco sem titulo'
+  const description = item.descricao || item.description || ''
+  const category = item.categoria || item.category || ''
+  const strategy = item.estrategiaResposta || item.planoMitigacao || item.responsePlan || ''
+
   return {
+    ...item,
     id: withId(item, `risco-${index}`),
-    title: item.titulo || item.title || item.nome || 'Risco sem titulo',
-    description: item.descricao || item.description || '',
-    category: item.categoria || item.category || '',
-    probability: toNumberValue(item.probabilidade),
-    impact: toNumberValue(item.impacto),
-    criticality: toNumberValue(item.criticidade),
+    projetoId: item.projetoId ?? null,
+    titulo: title,
+    descricao: description,
+    categoria: category,
+    probabilidade: probability,
+    impacto: impact,
+    criticidade: criticality,
+    estrategiaResposta: strategy,
+    title,
+    description,
+    category,
+    probability,
+    impact,
+    criticality,
     status: item.status || null,
-    strategy: item.estrategiaResposta || item.planoMitigacao || item.responsePlan || '',
+    strategy,
     projectName: item.projetoNome || item.projectName || '',
   }
 }
 
 const normalizers = {
+  users: normalizeUser,
   projects: normalizeProject,
   participants: normalizeParticipant,
   activities: normalizeActivity,
@@ -354,3 +511,72 @@ export async function loadDashboardData() {
     loadedAt: new Date().toISOString(),
   }
 }
+
+async function getEntityCollection(key) {
+  const items = await fetchCollection(ENDPOINTS[key])
+  return items.map(normalizers[key]).filter(Boolean)
+}
+
+async function getEntityById(key, id) {
+  const payload = await apiRequest(`${ENDPOINTS[key]}/${id}`)
+  return normalizers[key](payload, id)
+}
+
+async function createEntity(key, payload) {
+  const responsePayload = await apiRequest(ENDPOINTS[key], {
+    method: 'POST',
+    body: payload,
+  })
+  return normalizers[key](responsePayload, 'novo')
+}
+
+async function updateEntity(key, id, payload) {
+  const responsePayload = await apiRequest(`${ENDPOINTS[key]}/${id}`, {
+    method: 'PUT',
+    body: payload,
+  })
+  return normalizers[key](responsePayload, id)
+}
+
+async function deleteEntity(key, id) {
+  await apiRequest(`${ENDPOINTS[key]}/${id}`, { method: 'DELETE' })
+}
+
+export const getUsers = () => getEntityCollection('users')
+export const getProjects = () => getEntityCollection('projects')
+export const getProjectById = (id) => getEntityById('projects', id)
+export async function createProject(payload) {
+  return createEntity('projects', payload)
+}
+export const updateProject = (id, payload) => updateEntity('projects', id, payload)
+export const deleteProject = (id) => deleteEntity('projects', id)
+
+export const getActivities = () => getEntityCollection('activities')
+export const getActivityById = (id) => getEntityById('activities', id)
+export const createActivity = (payload) => createEntity('activities', payload)
+export const updateActivity = (id, payload) => updateEntity('activities', id, payload)
+export const deleteActivity = (id) => deleteEntity('activities', id)
+
+export const getParticipants = () => getEntityCollection('participants')
+export const getParticipantById = (id) => getEntityById('participants', id)
+export const createParticipant = (payload) => createEntity('participants', payload)
+export const updateParticipant = (id, payload) => updateEntity('participants', id, payload)
+export const deleteParticipant = (id) => deleteEntity('participants', id)
+
+export const getResources = () => getEntityCollection('resources')
+export const getResourceById = (id) => getEntityById('resources', id)
+export const createResource = (payload) => createEntity('resources', payload)
+export const updateResource = (id, payload) => updateEntity('resources', id, payload)
+export const deleteResource = (id) => deleteEntity('resources', id)
+
+export const getCosts = () => getEntityCollection('costs')
+export const getCostById = (id) => getEntityById('costs', id)
+export const createCost = (payload) => createEntity('costs', payload)
+export const updateCost = (id, payload) => updateEntity('costs', id, payload)
+export const deleteCost = (id) => deleteEntity('costs', id)
+
+export const getRisks = () => getEntityCollection('risks')
+export const getRiskById = (id) => getEntityById('risks', id)
+export const createRisk = (payload) => createEntity('risks', payload)
+export const updateRisk = (id, payload) => updateEntity('risks', id, payload)
+export const deleteRisk = (id) => deleteEntity('risks', id)
