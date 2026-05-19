@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-import { API_DISPLAY_URL, loadDashboardData } from './services/api'
+import { loadDashboardData } from './services/api'
+import { ActionToolbar } from './components/dashboard/ActionToolbar'
+import { DashboardHeader } from './components/dashboard/DashboardHeader'
+import { EntityOverview } from './components/dashboard/EntityOverview'
+import { ProjectSection } from './components/dashboard/ProjectSection'
+import { RecommendedCategories } from './components/dashboard/RecommendedCategories'
+import { Sidebar } from './components/dashboard/Sidebar'
+import { projectBucket } from './utils/format'
 
 const emptyDashboard = {
   projects: [],
@@ -11,472 +18,234 @@ const emptyDashboard = {
   risks: [],
 }
 
-const navItems = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'projects', label: 'Projetos' },
-  { id: 'participants', label: 'Participantes' },
-  { id: 'activities', label: 'Atividades' },
-  { id: 'resources', label: 'Recursos' },
-  { id: 'costs', label: 'Custos' },
-  { id: 'risks', label: 'Riscos' },
-]
-
 const viewText = {
   dashboard: {
-    title: 'Dashboard',
-    description: 'Resumo dos dados vindos da API Spring Boot.',
+    title: 'Meus Projetos',
+    description: 'Resumo visual dos projetos, tarefas, equipe, custos e riscos carregados da API.',
   },
   projects: {
     title: 'Projetos',
-    description: 'Nome, status, prioridade, orcamento e progresso.',
-  },
-  participants: {
-    title: 'Participantes',
-    description: 'Equipe vinculada aos projetos.',
+    description: 'Organize seus projetos por status, prioridade, prazo e progresso.',
   },
   activities: {
     title: 'Atividades',
-    description: 'Tarefas, responsaveis e prazos.',
+    description: 'Acompanhe tarefas, responsaveis e prazos vinculados aos projetos.',
+  },
+  participants: {
+    title: 'Participantes',
+    description: 'Veja os usuarios e papeis associados aos projetos.',
   },
   resources: {
     title: 'Recursos',
-    description: 'Recursos humanos, materiais ou tecnologicos.',
+    description: 'Controle recursos humanos, materiais e tecnologicos.',
   },
   costs: {
     title: 'Custos',
-    description: 'Valores planejados e realizados.',
+    description: 'Compare valores planejados e realizados por projeto.',
   },
   risks: {
     title: 'Riscos',
-    description: 'Probabilidade, impacto e plano de resposta.',
+    description: 'Monitore impactos, probabilidades e planos de resposta.',
+  },
+  settings: {
+    title: 'Configuracoes',
+    description: 'Ajustes visuais e informacoes de integracao do projeto.',
   },
 }
 
-const statusLabels = {
-  PLANEJADO: 'Planejado',
-  EM_ANDAMENTO: 'Em andamento',
-  PAUSADO: 'Pausado',
-  CONCLUIDO: 'Concluido',
-  CANCELADO: 'Cancelado',
-  NAO_INICIADA: 'Nao iniciada',
-  BLOQUEADA: 'Bloqueada',
-  CONCLUIDA: 'Concluida',
-  CANCELADA: 'Cancelada',
-  IDENTIFICADO: 'Identificado',
-  EM_ANALISE: 'Em analise',
-  EM_TRATAMENTO: 'Em tratamento',
-  MITIGADO: 'Mitigado',
-  ENCERRADO: 'Encerrado',
-  ALTA: 'Alta',
-  MEDIA: 'Media',
-  BAIXA: 'Baixa',
-  CRITICA: 'Critica',
+function countByProjectName(items, projectName) {
+  if (!projectName) {
+    return 0
+  }
+
+  return items.filter((item) => item.projectName === projectName).length
 }
 
-function formatLabel(value) {
-  if (!value) {
-    return '-'
+function buildProjectCounters(project, dashboard) {
+  return {
+    activities: countByProjectName(dashboard.activities, project.name),
+    participants: countByProjectName(dashboard.participants, project.name),
+    risks: countByProjectName(dashboard.risks, project.name),
+    costs: countByProjectName(dashboard.costs, project.name),
   }
-
-  return (
-    statusLabels[value] ||
-    String(value)
-      .toLowerCase()
-      .replaceAll('_', ' ')
-      .replace(/^\w/, (letter) => letter.toUpperCase())
-  )
 }
 
-function formatDate(value) {
-  if (!value) {
-    return '-'
-  }
-
-  const parsed = new Date(value)
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value
-  }
-
-  return new Intl.DateTimeFormat('pt-BR').format(parsed)
-}
-
-function formatMoney(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return '-'
-  }
-
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value)
-}
-
-function formatPercent(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return '0%'
-  }
-
-  return `${Math.max(0, Math.min(100, value))}%`
-}
-
-function getStatusTone(value) {
-  const normalized = String(value || '').toLowerCase()
-
-  if (normalized.includes('concl') || normalized.includes('mitig')) {
-    return 'success'
-  }
-
-  if (normalized.includes('bloque') || normalized.includes('cancel')) {
-    return 'danger'
-  }
-
-  if (normalized.includes('analise') || normalized.includes('tratamento')) {
-    return 'warning'
-  }
-
-  if (normalized.includes('andamento') || normalized.includes('planejado')) {
-    return 'info'
-  }
-
-  return 'neutral'
-}
-
-function getCollectionCount(dashboard, id) {
-  if (id === 'dashboard') {
-    return dashboard.projects.length
-  }
-
-  return dashboard[id]?.length || 0
-}
-
-function buildMetrics(dashboard) {
-  const totalCost = dashboard.costs.reduce(
-    (sum, cost) => sum + (cost.realValue || cost.plannedValue || 0),
-    0,
-  )
-  const activeProjects = dashboard.projects.filter(
-    (project) => project.status === 'EM_ANDAMENTO',
-  ).length
-  const criticalRisks = dashboard.risks.filter(
-    (risk) => (risk.criticality || 0) >= 10,
-  ).length
-
+function buildCategories(dashboard) {
   return [
     {
       label: 'Projetos',
-      value: dashboard.projects.length,
-      hint: `${activeProjects} em andamento`,
-      tone: 'blue',
+      hint: `${dashboard.projects.length} registros`,
+      icon: 'projects',
+      tone: 'amber',
+      view: 'projects',
     },
     {
       label: 'Atividades',
-      value: dashboard.activities.length,
-      hint: 'tarefas cadastradas',
-      tone: 'green',
+      hint: `${dashboard.activities.length} tarefas`,
+      icon: 'activities',
+      tone: 'rose',
+      view: 'activities',
     },
     {
-      label: 'Custos',
-      value: formatMoney(totalCost),
-      hint: 'valor acumulado',
-      tone: 'amber',
+      label: 'Participantes',
+      hint: `${dashboard.participants.length} pessoas`,
+      icon: 'participants',
+      tone: 'emerald',
+      view: 'participants',
     },
     {
       label: 'Riscos',
-      value: dashboard.risks.length,
-      hint: `${criticalRisks} criticos`,
-      tone: 'red',
+      hint: `${dashboard.risks.length} alertas`,
+      icon: 'risks',
+      tone: 'violet',
+      view: 'risks',
+    },
+    {
+      label: 'Custos',
+      hint: `${dashboard.costs.length} lancamentos`,
+      icon: 'costs',
+      tone: 'orange',
+      view: 'costs',
+    },
+    {
+      label: 'Recursos',
+      hint: `${dashboard.resources.length} itens`,
+      icon: 'resources',
+      tone: 'sky',
+      view: 'resources',
+    },
+    {
+      label: 'Relatorios',
+      hint: 'indicadores gerais',
+      icon: 'reports',
+      tone: 'zinc',
+      view: 'dashboard',
+    },
+    {
+      label: 'Equipe',
+      hint: 'visao da equipe',
+      icon: 'team',
+      tone: 'cyan',
+      view: 'participants',
     },
   ]
 }
 
-function MetricCard({ label, value, hint, tone }) {
-  return (
-    <article className={`metric-card metric-${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <p>{hint}</p>
-    </article>
+function buildNavItems(dashboard) {
+  return [
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', count: dashboard.projects.length },
+    { id: 'projects', label: 'Projetos', icon: 'projects', count: dashboard.projects.length },
+    { id: 'activities', label: 'Atividades', icon: 'activities', count: dashboard.activities.length },
+    {
+      id: 'participants',
+      label: 'Participantes',
+      icon: 'participants',
+      count: dashboard.participants.length,
+    },
+    { id: 'resources', label: 'Recursos', icon: 'resources', count: dashboard.resources.length },
+    { id: 'costs', label: 'Custos', icon: 'costs', count: dashboard.costs.length },
+    { id: 'risks', label: 'Riscos', icon: 'risks', count: dashboard.risks.length },
+    { id: 'settings', label: 'Configuracoes', icon: 'settings' },
+  ]
+}
+
+function matchesSearch(project, search) {
+  const value = search.trim().toLowerCase()
+
+  if (!value) {
+    return true
+  }
+
+  return [project.name, project.description, project.status, project.priority]
+    .filter(Boolean)
+    .some((field) => String(field).toLowerCase().includes(value))
+}
+
+function filterEntities(items, search, fields) {
+  const value = search.trim().toLowerCase()
+
+  if (!value) {
+    return items
+  }
+
+  return items.filter((item) =>
+    fields
+      .map((field) => item[field])
+      .filter(Boolean)
+      .some((field) => String(field).toLowerCase().includes(value)),
   )
 }
 
-function StatusBadge({ value }) {
-  return (
-    <span className={`status-badge ${getStatusTone(value)}`}>
-      {formatLabel(value)}
-    </span>
+function groupProjects(projects) {
+  return projects.reduce(
+    (groups, project) => {
+      groups[projectBucket(project)].push(project)
+      return groups
+    },
+    { todo: [], active: [], completed: [] },
   )
 }
 
-function ProgressBar({ value }) {
+function Notice({ isDemo, errors }) {
+  if (!errors.length) {
+    return null
+  }
+
   return (
-    <div className="progress-wrap" aria-label={`Progresso ${formatPercent(value)}`}>
-      <span style={{ width: formatPercent(value) }}></span>
+    <div className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
+      <p className="text-sm font-semibold">
+        {isDemo ? 'API indisponivel, exibindo dados de exemplo.' : 'Algumas consultas falharam.'}
+      </p>
+      <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">{errors.slice(0, 2).join(' ')}</p>
     </div>
   )
 }
 
-function InfoLine({ label, value }) {
+function ProjectsBoard({ dashboard, loading, onRefresh, onSelectView, projects }) {
+  const groupedProjects = groupProjects(projects)
+  const categories = buildCategories(dashboard)
+  const getCounters = (project) => buildProjectCounters(project, dashboard)
+
   return (
-    <div className="info-line">
-      <span>{label}</span>
-      <strong>{value || '-'}</strong>
+    <div className="space-y-7">
+      <RecommendedCategories categories={categories} onSelect={onSelectView} />
+      <ActionToolbar loading={loading} onRefresh={onRefresh} />
+      <ProjectSection
+        getCounters={getCounters}
+        projects={groupedProjects.todo}
+        showAddRow
+        title="TODO"
+      />
+      <ProjectSection
+        getCounters={getCounters}
+        projects={groupedProjects.active}
+        title="PROJETOS ATIVOS"
+      />
+      <ProjectSection
+        getCounters={getCounters}
+        projects={groupedProjects.completed}
+        title="CONCLUIDOS"
+      />
     </div>
   )
 }
 
-function ProjectCard({ project }) {
+function SettingsPanel() {
   return (
-    <article className="item-card">
-      <div className="card-heading">
-        <div>
-          <h3>{project.name}</h3>
-          <p>{project.description || 'Sem descricao cadastrada.'}</p>
-        </div>
-        <StatusBadge value={project.status} />
-      </div>
-
-      <div className="project-progress">
-        <div>
-          <span>Progresso</span>
-          <strong>{formatPercent(project.completion)}</strong>
-        </div>
-        <ProgressBar value={project.completion} />
-      </div>
-
-      <div className="info-grid">
-        <InfoLine label="Inicio" value={formatDate(project.startDate)} />
-        <InfoLine label="Fim" value={formatDate(project.endDate)} />
-        <InfoLine label="Prioridade" value={formatLabel(project.priority)} />
-        <InfoLine label="Orcamento" value={formatMoney(project.budget)} />
-      </div>
-    </article>
-  )
-}
-
-function ActivityCard({ activity }) {
-  return (
-    <article className="item-card">
-      <div className="card-heading">
-        <div>
-          <h3>{activity.title}</h3>
-          <p>{activity.description || activity.projectName || 'Sem descricao cadastrada.'}</p>
-        </div>
-        <StatusBadge value={activity.status} />
-      </div>
-      <div className="info-grid">
-        <InfoLine label="Projeto" value={activity.projectName} />
-        <InfoLine label="Responsavel" value={activity.responsibleName} />
-        <InfoLine label="Prazo" value={formatDate(activity.dueDate)} />
-        <InfoLine label="Prioridade" value={formatLabel(activity.priority)} />
-      </div>
-      <ProgressBar value={activity.completion} />
-    </article>
-  )
-}
-
-function ParticipantCard({ participant }) {
-  return (
-    <article className="item-card compact-card">
-      <div className="card-heading">
-        <div>
-          <h3>{participant.userName}</h3>
-          <p>{participant.projectName || 'Sem projeto vinculado.'}</p>
-        </div>
-        <StatusBadge value={participant.active ? 'Ativo' : 'Inativo'} />
-      </div>
-      <div className="info-grid">
-        <InfoLine label="Funcao" value={participant.role} />
-        <InfoLine label="Acesso" value={formatLabel(participant.accessRole)} />
-      </div>
-    </article>
-  )
-}
-
-function ResourceCard({ resource }) {
-  return (
-    <article className="item-card compact-card">
-      <div className="card-heading">
-        <div>
-          <h3>{resource.name}</h3>
-          <p>{resource.description || resource.projectName || 'Sem descricao cadastrada.'}</p>
-        </div>
-        <StatusBadge value={resource.type} />
-      </div>
-      <div className="info-grid">
-        <InfoLine label="Projeto" value={resource.projectName} />
-        <InfoLine label="Quantidade" value={resource.quantity} />
-        <InfoLine label="Custo unitario" value={formatMoney(resource.unitCost)} />
-      </div>
-    </article>
-  )
-}
-
-function CostCard({ cost }) {
-  return (
-    <article className="item-card compact-card">
-      <div className="card-heading">
-        <div>
-          <h3>{cost.description}</h3>
-          <p>{cost.projectName || cost.activityTitle || 'Sem projeto vinculado.'}</p>
-        </div>
-        <StatusBadge value={cost.type} />
-      </div>
-      <div className="info-grid">
-        <InfoLine label="Previsto" value={formatMoney(cost.plannedValue)} />
-        <InfoLine label="Real" value={formatMoney(cost.realValue)} />
-        <InfoLine label="Lancamento" value={formatDate(cost.date)} />
-        <InfoLine label="Recurso" value={cost.resourceName} />
-      </div>
-    </article>
-  )
-}
-
-function RiskCard({ risk }) {
-  return (
-    <article className="item-card compact-card">
-      <div className="card-heading">
-        <div>
-          <h3>{risk.title}</h3>
-          <p>{risk.description || risk.strategy || 'Sem descricao cadastrada.'}</p>
-        </div>
-        <StatusBadge value={risk.status} />
-      </div>
-      <div className="info-grid">
-        <InfoLine label="Projeto" value={risk.projectName} />
-        <InfoLine label="Categoria" value={formatLabel(risk.category)} />
-        <InfoLine label="Probabilidade" value={risk.probability} />
-        <InfoLine label="Impacto" value={risk.impact} />
-        <InfoLine label="Criticidade" value={risk.criticality} />
-      </div>
-    </article>
-  )
-}
-
-function EmptyState({ title }) {
-  return (
-    <div className="empty-state">
-      <strong>{title}</strong>
-      <p>Quando a API retornar registros, eles aparecem aqui.</p>
-    </div>
-  )
-}
-
-function CollectionView({ type, dashboard }) {
-  const items = dashboard[type]
-  const renderers = {
-    projects: ProjectCard,
-    participants: ParticipantCard,
-    activities: ActivityCard,
-    resources: ResourceCard,
-    costs: CostCard,
-    risks: RiskCard,
-  }
-  const propNames = {
-    projects: 'project',
-    participants: 'participant',
-    activities: 'activity',
-    resources: 'resource',
-    costs: 'cost',
-    risks: 'risk',
-  }
-  const Card = renderers[type]
-
-  if (!items.length) {
-    return <EmptyState title={`Nenhum item em ${viewText[type].title.toLowerCase()}`} />
-  }
-
-  return (
-    <section className="list-grid">
-      {items.map((item) => (
-        <Card key={item.id} {...{ [propNames[type]]: item }} />
-      ))}
+    <section className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">Configuracoes do frontend</h2>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+        O React consome a API configurada em <span className="font-medium text-zinc-900 dark:text-zinc-100">VITE_API_URL</span>.
+        Para funcionar em producao, a API Spring tambem precisa liberar o dominio deste frontend no CORS.
+      </p>
     </section>
-  )
-}
-
-function DashboardView({ dashboard }) {
-  const metrics = buildMetrics(dashboard)
-  const nextActivities = dashboard.activities.slice(0, 4)
-  const highlightedRisks = dashboard.risks.slice(0, 4)
-
-  return (
-    <>
-      <section className="metrics-grid">
-        {metrics.map((metric) => (
-          <MetricCard key={metric.label} {...metric} />
-        ))}
-      </section>
-
-      <section className="dashboard-grid">
-        <div className="section-block">
-          <div className="section-heading">
-            <h2>Projetos recentes</h2>
-            <span>{dashboard.projects.length} registros</span>
-          </div>
-          <div className="stack-list">
-            {dashboard.projects.length ? (
-              dashboard.projects
-                .slice(0, 3)
-                .map((project) => <ProjectCard key={project.id} project={project} />)
-            ) : (
-              <EmptyState title="Nenhum projeto encontrado" />
-            )}
-          </div>
-        </div>
-
-        <div className="side-stack">
-          <div className="section-block">
-            <div className="section-heading">
-              <h2>Riscos</h2>
-              <span>{highlightedRisks.length}</span>
-            </div>
-            <div className="mini-list">
-              {highlightedRisks.length ? (
-                highlightedRisks.map((risk) => (
-                  <div className="mini-row" key={risk.id}>
-                    <div>
-                      <strong>{risk.title}</strong>
-                      <span>{risk.projectName || 'Sem projeto'}</span>
-                    </div>
-                    <StatusBadge value={risk.status} />
-                  </div>
-                ))
-              ) : (
-                <EmptyState title="Sem riscos cadastrados" />
-              )}
-            </div>
-          </div>
-
-          <div className="section-block">
-            <div className="section-heading">
-              <h2>Atividades</h2>
-              <span>{nextActivities.length}</span>
-            </div>
-            <div className="mini-list">
-              {nextActivities.length ? (
-                nextActivities.map((activity) => (
-                  <div className="mini-row" key={activity.id}>
-                    <div>
-                      <strong>{activity.title}</strong>
-                      <span>{formatDate(activity.dueDate)}</span>
-                    </div>
-                    <StatusBadge value={activity.priority} />
-                  </div>
-                ))
-              ) : (
-                <EmptyState title="Sem atividades cadastradas" />
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-    </>
   )
 }
 
 function App() {
   const [activeView, setActiveView] = useState('dashboard')
+  const [search, setSearch] = useState('')
+  const [theme, setTheme] = useState('light')
   const [dashboard, setDashboard] = useState(emptyDashboard)
   const [requestState, setRequestState] = useState({
     loading: true,
@@ -501,9 +270,7 @@ function App() {
       setRequestState({
         loading: false,
         errors: [
-          error instanceof Error
-            ? error.message
-            : 'Nao foi possivel carregar o painel.',
+          error instanceof Error ? error.message : 'Nao foi possivel carregar o painel.',
         ],
         isDemo: false,
         loadedAt: null,
@@ -537,9 +304,7 @@ function App() {
         setRequestState({
           loading: false,
           errors: [
-            error instanceof Error
-              ? error.message
-              : 'Nao foi possivel carregar o painel.',
+            error instanceof Error ? error.message : 'Nao foi possivel carregar o painel.',
           ],
           isDemo: false,
           loadedAt: null,
@@ -554,73 +319,68 @@ function App() {
     }
   }, [])
 
-  const currentView = viewText[activeView]
-  const loadedAt = useMemo(
-    () => (requestState.loadedAt ? formatDate(requestState.loadedAt) : '-'),
-    [requestState.loadedAt],
+  const currentView = viewText[activeView] || viewText.dashboard
+  const navItems = useMemo(() => buildNavItems(dashboard), [dashboard])
+  const visibleProjects = useMemo(
+    () => dashboard.projects.filter((project) => matchesSearch(project, search)),
+    [dashboard.projects, search],
   )
 
+  const entityFields = {
+    activities: ['title', 'description', 'projectName', 'responsibleName', 'status', 'priority'],
+    participants: ['userName', 'projectName', 'role', 'accessRole'],
+    resources: ['name', 'description', 'projectName', 'type'],
+    costs: ['description', 'projectName', 'activityTitle', 'resourceName', 'type'],
+    risks: ['title', 'description', 'projectName', 'category', 'status'],
+  }
+
+  const entityItems =
+    activeView in entityFields
+      ? filterEntities(dashboard[activeView], search, entityFields[activeView])
+      : []
+
+  const isDark = theme === 'dark'
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">PM</div>
-          <div>
-            <strong>Project Manager</strong>
-            <span>Gerenciamento de projetos</span>
-          </div>
+    <div className={isDark ? 'dark' : ''}>
+      <div className="min-h-screen bg-zinc-50 text-zinc-950 transition-colors dark:bg-zinc-950 dark:text-zinc-50">
+      <Sidebar
+        activeView={activeView}
+        navItems={navItems}
+        onNavigate={setActiveView}
+      />
+
+      <main className="thin-scrollbar min-h-screen px-4 py-5 sm:px-6 lg:ml-64 lg:px-8 lg:py-7">
+        <div className="mx-auto max-w-7xl space-y-7">
+          <DashboardHeader
+            description={currentView.description}
+            isDark={isDark}
+            onSearchChange={setSearch}
+            onToggleTheme={() =>
+              setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))
+            }
+            searchValue={search}
+            title={currentView.title}
+          />
+
+          <Notice errors={requestState.errors} isDemo={requestState.isDemo} />
+
+          {activeView === 'dashboard' || activeView === 'projects' ? (
+            <ProjectsBoard
+              dashboard={dashboard}
+              loading={requestState.loading}
+              onRefresh={refreshDashboard}
+              onSelectView={setActiveView}
+              projects={visibleProjects}
+            />
+          ) : activeView === 'settings' ? (
+            <SettingsPanel />
+          ) : (
+            <EntityOverview items={entityItems} title={currentView.title} type={activeView} />
+          )}
         </div>
-
-        <nav className="sidebar-nav" aria-label="Navegacao principal">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={activeView === item.id ? 'active' : ''}
-              onClick={() => setActiveView(item.id)}
-            >
-              <span>{item.label}</span>
-              <strong>{getCollectionCount(dashboard, item.id)}</strong>
-            </button>
-          ))}
-        </nav>
-
-        <div className="api-panel">
-          <span>API Spring</span>
-          <strong>{API_DISPLAY_URL}</strong>
-          <p>{requestState.isDemo ? 'Modo demonstracao' : `Atualizado em ${loadedAt}`}</p>
-        </div>
-      </aside>
-
-      <main className="content">
-        <header className="topbar">
-          <div>
-            <span className="eyebrow">Painel operacional</span>
-            <h1>{currentView.title}</h1>
-            <p>{currentView.description}</p>
-          </div>
-          <button type="button" onClick={refreshDashboard} disabled={requestState.loading}>
-            {requestState.loading ? 'Carregando' : 'Atualizar'}
-          </button>
-        </header>
-
-        {requestState.errors.length ? (
-          <div className={requestState.isDemo ? 'notice warning' : 'notice'}>
-            <strong>
-              {requestState.isDemo
-                ? 'API indisponivel, exibindo dados de exemplo.'
-                : 'Algumas consultas falharam.'}
-            </strong>
-            <p>{requestState.errors.slice(0, 2).join(' ')}</p>
-          </div>
-        ) : null}
-
-        {activeView === 'dashboard' ? (
-          <DashboardView dashboard={dashboard} />
-        ) : (
-          <CollectionView type={activeView} dashboard={dashboard} />
-        )}
       </main>
+      </div>
     </div>
   )
 }
