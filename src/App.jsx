@@ -13,7 +13,10 @@ import {
   deleteProject,
   deleteResource,
   deleteRisk,
+  getStoredAuthUser,
   loadDashboardData,
+  logout as clearStoredAuthUser,
+  saveAuthenticatedUser,
   updateActivity,
   updateCost,
   updateParticipant,
@@ -21,6 +24,8 @@ import {
   updateResource,
   updateRisk,
 } from './services/api'
+import { LoginPage } from './components/auth/LoginPage'
+import { RegisterPage } from './components/auth/RegisterPage'
 import { ActionToolbar } from './components/dashboard/ActionToolbar'
 import { EntityCrudView } from './components/crud/EntityCrudView'
 import { DashboardHeader } from './components/dashboard/DashboardHeader'
@@ -397,6 +402,9 @@ function SettingsPanel() {
 }
 
 function App() {
+  const [authUser, setAuthUser] = useState(() => getStoredAuthUser())
+  const [authView, setAuthView] = useState('login')
+  const [authNotice, setAuthNotice] = useState('')
   const [activeView, setActiveView] = useState('dashboard')
   const [search, setSearch] = useState('')
   const [theme, setTheme] = useState('light')
@@ -407,12 +415,12 @@ function App() {
   const [hiddenSections, setHiddenSections] = useState(readHiddenSections)
   const [activeToolbarMenu, setActiveToolbarMenu] = useState(null)
   const [dashboard, setDashboard] = useState(emptyDashboard)
-  const [requestState, setRequestState] = useState({
-    loading: true,
+  const [requestState, setRequestState] = useState(() => ({
+    loading: Boolean(authUser),
     errors: [],
     isDemo: false,
     loadedAt: null,
-  })
+  }))
 
   async function refreshDashboard() {
     setRequestState((current) => ({ ...current, loading: true }))
@@ -436,6 +444,34 @@ function App() {
         loadedAt: null,
       })
     }
+  }
+
+  function handleLoginSuccess(user) {
+    const safeUser = saveAuthenticatedUser(user)
+
+    if (!safeUser) {
+      return
+    }
+
+    setAuthUser(safeUser)
+    setAuthNotice('')
+    setAuthView('login')
+    setActiveView('dashboard')
+    setRequestState((current) => ({ ...current, errors: [], loading: true }))
+  }
+
+  function handleRegisterSuccess(message) {
+    setAuthNotice(message)
+    setAuthView('login')
+  }
+
+  function handleLogout() {
+    clearStoredAuthUser()
+    setAuthUser(null)
+    setAuthNotice('')
+    setAuthView('login')
+    setSearch('')
+    setActiveView('dashboard')
   }
 
   async function handleCreateProject(payload) {
@@ -475,6 +511,10 @@ function App() {
   }
 
   useEffect(() => {
+    if (!authUser) {
+      return undefined
+    }
+
     let ignore = false
 
     async function loadInitialDashboard() {
@@ -513,7 +553,7 @@ function App() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [authUser])
 
   useEffect(() => {
     try {
@@ -562,6 +602,28 @@ function App() {
 
   const isDark = theme === 'dark'
 
+  if (!authUser) {
+    return (
+      <div className={isDark ? 'dark' : ''}>
+        {authView === 'register' ? (
+          <RegisterPage
+            onGoToLogin={() => setAuthView('login')}
+            onRegistered={handleRegisterSuccess}
+          />
+        ) : (
+          <LoginPage
+            notice={authNotice}
+            onGoToRegister={() => {
+              setAuthNotice('')
+              setAuthView('register')
+            }}
+            onLoginSuccess={handleLoginSuccess}
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={isDark ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 text-zinc-950 transition-colors dark:bg-zinc-950 dark:text-zinc-50">
@@ -574,8 +636,10 @@ function App() {
       <main className="thin-scrollbar min-h-screen px-4 py-5 sm:px-6 lg:ml-64 lg:px-8 lg:py-7">
         <div className="mx-auto max-w-7xl space-y-7">
           <DashboardHeader
+            currentUser={authUser}
             description={currentView.description}
             isDark={isDark}
+            onLogout={handleLogout}
             onSearchChange={setSearch}
             onToggleTheme={() =>
               setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))

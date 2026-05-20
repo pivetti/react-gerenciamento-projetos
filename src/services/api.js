@@ -16,6 +16,9 @@ const ENDPOINTS = {
   risks: '/riscos',
 }
 
+const LOGIN_ENDPOINT = '/auth/login'
+const authUserStorageKey = 'projecthub:auth-user'
+
 const demoData = {
   users: [
     {
@@ -266,6 +269,147 @@ function getErrorDetail(payload) {
   }
 
   return ''
+}
+
+function getSafeUserSource(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return null
+  }
+
+  if (payload.usuario && typeof payload.usuario === 'object') {
+    return payload.usuario
+  }
+
+  if (payload.user && typeof payload.user === 'object') {
+    return payload.user
+  }
+
+  return payload
+}
+
+function normalizeSafeUser(payload) {
+  const user = getSafeUserSource(payload)
+
+  if (!user) {
+    return null
+  }
+
+  const safeUser = {
+    id: user.id ?? user.codigo ?? null,
+    nome: user.nome || user.name || '',
+    email: user.email || '',
+    perfil: user.perfil || user.profile || '',
+  }
+
+  if (!safeUser.id && !safeUser.nome && !safeUser.email && !safeUser.perfil) {
+    return null
+  }
+
+  return safeUser
+}
+
+export function getStoredAuthUser() {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const savedUser = window.localStorage.getItem(authUserStorageKey)
+
+    if (!savedUser) {
+      return null
+    }
+
+    return normalizeSafeUser(JSON.parse(savedUser))
+  } catch {
+    return null
+  }
+}
+
+export function saveAuthenticatedUser(user) {
+  const safeUser = normalizeSafeUser(user)
+
+  if (!safeUser || typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    window.localStorage.setItem(authUserStorageKey, JSON.stringify(safeUser))
+  } catch {
+    // A sessao atual ainda pode continuar mesmo se o navegador bloquear localStorage.
+  }
+
+  return safeUser
+}
+
+export function logout() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.localStorage.removeItem(authUserStorageKey)
+  } catch {
+    // Nada para limpar quando o navegador bloqueia localStorage.
+  }
+}
+
+export async function registerUser(payload) {
+  const response = await fetch(`${API_BASE_URL}${ENDPOINTS.users}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+  const responsePayload = await parseResponse(response)
+
+  if (!response.ok) {
+    const detail = getErrorDetail(responsePayload)
+    throw new Error(
+      detail || 'Nao foi possivel cadastrar o usuario. Verifique os dados e tente novamente.',
+    )
+  }
+
+  return normalizeSafeUser(responsePayload) || {}
+}
+
+export const createUser = registerUser
+
+export async function login(credentials) {
+  const response = await fetch(`${API_BASE_URL}${LOGIN_ENDPOINT}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(credentials),
+  })
+  const payload = await parseResponse(response)
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(
+        'Login ainda não disponível na API. O cadastro já está funcionando, mas falta implementar o endpoint /auth/login no backend.',
+      )
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Email ou senha invalidos.')
+    }
+
+    const detail = getErrorDetail(payload)
+    throw new Error(detail || 'Email ou senha invalidos.')
+  }
+
+  const safeUser = normalizeSafeUser(payload)
+
+  if (!safeUser) {
+    throw new Error('Resposta de login invalida.')
+  }
+
+  return safeUser
 }
 
 function toStringValue(value) {
