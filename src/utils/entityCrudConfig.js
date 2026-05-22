@@ -1,11 +1,11 @@
-const priorityOptions = [
+export const priorityOptions = [
   { value: 'BAIXA', label: 'Baixa' },
   { value: 'MEDIA', label: 'Media' },
   { value: 'ALTA', label: 'Alta' },
   { value: 'CRITICA', label: 'Critica' },
 ]
 
-const projectStatusOptions = [
+export const projectStatusOptions = [
   { value: 'PLANEJADO', label: 'Planejado' },
   { value: 'EM_ANDAMENTO', label: 'Em andamento' },
   { value: 'PAUSADO', label: 'Pausado' },
@@ -13,7 +13,7 @@ const projectStatusOptions = [
   { value: 'CANCELADO', label: 'Cancelado' },
 ]
 
-const activityStatusOptions = [
+export const activityStatusOptions = [
   { value: 'NAO_INICIADA', label: 'Nao iniciada' },
   { value: 'EM_ANDAMENTO', label: 'Em andamento' },
   { value: 'BLOQUEADA', label: 'Bloqueada' },
@@ -21,14 +21,14 @@ const activityStatusOptions = [
   { value: 'CANCELADA', label: 'Cancelada' },
 ]
 
-const accessRoleOptions = [
+export const accessRoleOptions = [
   { value: 'ADMINISTRADOR_PROJETO', label: 'Administrador do projeto' },
   { value: 'COORDENADOR', label: 'Coordenador' },
   { value: 'EXECUTOR', label: 'Executor' },
   { value: 'VISUALIZADOR', label: 'Visualizador' },
 ]
 
-const resourceTypeOptions = [
+export const resourceTypeOptions = [
   { value: 'HUMANO', label: 'Humano' },
   { value: 'MATERIAL', label: 'Material' },
   { value: 'TECNOLOGICO', label: 'Tecnologico' },
@@ -36,7 +36,7 @@ const resourceTypeOptions = [
   { value: 'SERVICO', label: 'Servico' },
 ]
 
-const costTypeOptions = [
+export const costTypeOptions = [
   { value: 'PLANEJADO', label: 'Planejado' },
   { value: 'OPERACIONAL', label: 'Operacional' },
   { value: 'AQUISICAO', label: 'Aquisicao' },
@@ -44,7 +44,7 @@ const costTypeOptions = [
   { value: 'IMPREVISTO', label: 'Imprevisto' },
 ]
 
-const riskCategoryOptions = [
+export const riskCategoryOptions = [
   { value: 'ESCOPO', label: 'Escopo' },
   { value: 'PRAZO', label: 'Prazo' },
   { value: 'CUSTO', label: 'Custo' },
@@ -55,7 +55,7 @@ const riskCategoryOptions = [
   { value: 'EXTERNO', label: 'Externo' },
 ]
 
-const riskStatusOptions = [
+export const riskStatusOptions = [
   { value: 'IDENTIFICADO', label: 'Identificado' },
   { value: 'EM_ANALISE', label: 'Em analise' },
   { value: 'EM_TRATAMENTO', label: 'Em tratamento' },

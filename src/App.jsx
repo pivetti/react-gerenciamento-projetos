@@ -16,6 +16,7 @@ import {
   getStoredAuthUser,
   loadDashboardData,
   logout as clearStoredAuthUser,
+  prewarmApi,
   saveAuthenticatedUser,
   updateActivity,
   updateCost,
@@ -31,6 +32,9 @@ import { EntityCrudView } from './components/crud/EntityCrudView'
 import { DashboardHeader } from './components/dashboard/DashboardHeader'
 import { EntityOverview } from './components/dashboard/EntityOverview'
 import { ProjectFormModal } from './components/dashboard/ProjectFormModal'
+import { ProjectDetailPage } from './components/dashboard/ProjectDetailPage'
+import { ProjectWizardModal } from './components/dashboard/ProjectWizardModal'
+import { IndicatorsPage } from './components/dashboard/IndicatorsPage'
 import { ProjectSection } from './components/dashboard/ProjectSection'
 import { RecommendedCategories } from './components/dashboard/RecommendedCategories'
 import { Sidebar } from './components/dashboard/Sidebar'
@@ -100,6 +104,10 @@ const viewText = {
     title: 'Projetos',
     description: 'Organize seus projetos por status, prioridade, prazo e progresso.',
   },
+  indicators: {
+    title: 'Indicadores',
+    description: 'Visao executiva dos projetos, prazos, custos e riscos.',
+  },
   activities: {
     title: 'Atividades',
     description: 'Acompanhe tarefas, responsaveis e prazos vinculados aos projetos.',
@@ -126,20 +134,56 @@ const viewText = {
   },
 }
 
-function countByProjectName(items, projectName) {
-  if (!projectName) {
-    return 0
+function normalizeComparable(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function getRelatedProjectId(item) {
+  const value = item.projetoId ?? item.projectId ?? item.projeto?.id ?? item.project?.id
+
+  if (value === null || value === undefined || value === '') {
+    return null
   }
 
-  return items.filter((item) => item.projectName === projectName).length
+  return String(value)
+}
+
+function getRelatedProjectName(item) {
+  return (
+    item.projectName ||
+    item.projetoNome ||
+    item.projeto?.nome ||
+    item.project?.name ||
+    ''
+  )
+}
+
+function belongsToProject(item, project) {
+  const projectId = project?.id === null || project?.id === undefined ? null : String(project.id)
+  const itemProjectId = getRelatedProjectId(item)
+
+  if (projectId && itemProjectId) {
+    return itemProjectId === projectId
+  }
+
+  return normalizeComparable(getRelatedProjectName(item)) === normalizeComparable(project?.name)
+}
+
+function filterItemsByProject(items, project) {
+  if (!project) {
+    return []
+  }
+
+  return items.filter((item) => belongsToProject(item, project))
 }
 
 function buildProjectCounters(project, dashboard) {
   return {
-    activities: countByProjectName(dashboard.activities, project.name),
-    participants: countByProjectName(dashboard.participants, project.name),
-    risks: countByProjectName(dashboard.risks, project.name),
-    costs: countByProjectName(dashboard.costs, project.name),
+    activities: filterItemsByProject(dashboard.activities, project).length,
+    participants: filterItemsByProject(dashboard.participants, project).length,
+    resources: filterItemsByProject(dashboard.resources, project).length,
+    risks: filterItemsByProject(dashboard.risks, project).length,
+    costs: filterItemsByProject(dashboard.costs, project).length,
   }
 }
 
@@ -188,11 +232,11 @@ function buildCategories(dashboard) {
       view: 'resources',
     },
     {
-      label: 'Relatorios',
-      hint: 'indicadores gerais',
+      label: 'Indicadores',
+      hint: 'visao executiva dos projetos',
       icon: 'reports',
       tone: 'zinc',
-      view: 'dashboard',
+      view: 'indicators',
     },
     {
       label: 'Equipe',
@@ -208,16 +252,6 @@ function buildNavItems(dashboard) {
   return [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', count: dashboard.projects.length },
     { id: 'projects', label: 'Projetos', icon: 'projects', count: dashboard.projects.length },
-    { id: 'activities', label: 'Atividades', icon: 'activities', count: dashboard.activities.length },
-    {
-      id: 'participants',
-      label: 'Participantes',
-      icon: 'participants',
-      count: dashboard.participants.length,
-    },
-    { id: 'resources', label: 'Recursos', icon: 'resources', count: dashboard.resources.length },
-    { id: 'costs', label: 'Custos', icon: 'costs', count: dashboard.costs.length },
-    { id: 'risks', label: 'Riscos', icon: 'risks', count: dashboard.risks.length },
     { id: 'settings', label: 'Configuracoes', icon: 'settings' },
   ]
 }
@@ -232,21 +266,6 @@ function matchesSearch(project, search) {
   return [project.name, project.description, project.status, project.priority]
     .filter(Boolean)
     .some((field) => String(field).toLowerCase().includes(value))
-}
-
-function filterEntities(items, search, fields) {
-  const value = search.trim().toLowerCase()
-
-  if (!value) {
-    return items
-  }
-
-  return items.filter((item) =>
-    fields
-      .map((field) => item[field])
-      .filter(Boolean)
-      .some((field) => String(field).toLowerCase().includes(value)),
-  )
 }
 
 function groupProjects(projects) {
@@ -406,9 +425,12 @@ function App() {
   const [authView, setAuthView] = useState('login')
   const [authNotice, setAuthNotice] = useState('')
   const [activeView, setActiveView] = useState('dashboard')
-  const [search, setSearch] = useState('')
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
+  const [projectSearch, setProjectSearch] = useState('')
   const [theme, setTheme] = useState('light')
   const [projectFormOpen, setProjectFormOpen] = useState(false)
+  const [projectWizardOpen, setProjectWizardOpen] = useState(false)
+  const [editingProject, setEditingProject] = useState(null)
   const [projectSubmitting, setProjectSubmitting] = useState(false)
   const [projectFilters, setProjectFilters] = useState(defaultProjectFilters)
   const [projectSortOption, setProjectSortOption] = useState('none')
@@ -421,6 +443,10 @@ function App() {
     isDemo: false,
     loadedAt: null,
   }))
+
+  useEffect(() => {
+    prewarmApi()
+  }, [])
 
   async function refreshDashboard() {
     setRequestState((current) => ({ ...current, loading: true }))
@@ -446,6 +472,35 @@ function App() {
     }
   }
 
+  function handleNavigate(view) {
+    setActiveView(view)
+
+    if (view !== 'project-detail') {
+      setSelectedProjectId(null)
+    }
+  }
+
+  function handleOpenProjectDetail(project) {
+    setSelectedProjectId(project.id)
+    setActiveView('project-detail')
+    setProjectSearch('')
+  }
+
+  function handleBackToProjects() {
+    setSelectedProjectId(null)
+    setActiveView('projects')
+  }
+
+  function handleOpenNewProject() {
+    setEditingProject(null)
+    setProjectWizardOpen(true)
+  }
+
+  function handleEditProject(project) {
+    setEditingProject(project)
+    setProjectFormOpen(true)
+  }
+
   function handleLoginSuccess(user) {
     const safeUser = saveAuthenticatedUser(user)
 
@@ -457,6 +512,8 @@ function App() {
     setAuthNotice('')
     setAuthView('login')
     setActiveView('dashboard')
+    setSelectedProjectId(null)
+    setProjectWizardOpen(false)
     setRequestState((current) => ({ ...current, errors: [], loading: true }))
   }
 
@@ -470,20 +527,43 @@ function App() {
     setAuthUser(null)
     setAuthNotice('')
     setAuthView('login')
-    setSearch('')
+    setProjectSearch('')
     setActiveView('dashboard')
+    setSelectedProjectId(null)
+    setProjectWizardOpen(false)
   }
 
-  async function handleCreateProject(payload) {
+  async function handleSaveProject(payload) {
     setProjectSubmitting(true)
 
     try {
-      await createProject(payload)
+      if (editingProject) {
+        await updateProject(editingProject.id, payload)
+      } else {
+        await createProject(payload)
+      }
+
       await refreshDashboard()
       setProjectFormOpen(false)
+      setEditingProject(null)
     } finally {
       setProjectSubmitting(false)
     }
+  }
+
+  async function handleDeleteSelectedProject(project) {
+    await deleteProject(project.id)
+    setSelectedProjectId(null)
+    setActiveView('projects')
+    await refreshDashboard()
+  }
+
+  async function handleProjectWizardSaved(project) {
+    await refreshDashboard()
+    setProjectWizardOpen(false)
+    setSelectedProjectId(project.id)
+    setActiveView('project-detail')
+    setProjectSearch('')
   }
 
   function handleFilterChange(field, value) {
@@ -563,18 +643,35 @@ function App() {
     }
   }, [hiddenSections])
 
-  const currentView = viewText[activeView] || viewText.dashboard
+  const selectedProject = useMemo(
+    () =>
+      selectedProjectId
+        ? dashboard.projects.find((project) => String(project.id) === String(selectedProjectId))
+        : null,
+    [dashboard.projects, selectedProjectId],
+  )
+  const currentView =
+    activeView === 'project-detail'
+      ? {
+          title: selectedProject?.name || 'Projeto',
+          description: selectedProject
+            ? 'Detalhes, indicadores e registros vinculados ao projeto selecionado.'
+            : 'Selecione um projeto para visualizar seus detalhes.',
+        }
+      : viewText[activeView] || viewText.dashboard
   const navItems = useMemo(() => buildNavItems(dashboard), [dashboard])
   const visibleProjects = useMemo(
     () =>
       sortProjects(
         filterProjects(
-          dashboard.projects.filter((project) => matchesSearch(project, search)),
+          dashboard.projects.filter((project) =>
+            activeView === 'projects' ? matchesSearch(project, projectSearch) : true,
+          ),
           projectFilters,
         ),
         projectSortOption,
       ),
-    [dashboard.projects, projectFilters, projectSortOption, search],
+    [activeView, dashboard.projects, projectFilters, projectSortOption, projectSearch],
   )
 
   const entityFields = {
@@ -585,10 +682,25 @@ function App() {
     risks: ['title', 'description', 'projectName', 'category', 'status'],
   }
 
-  const entityItems =
-    activeView in entityFields
-      ? filterEntities(dashboard[activeView], search, entityFields[activeView])
-      : []
+  const projectRelatedItems = useMemo(
+    () => ({
+      activities: filterItemsByProject(dashboard.activities, selectedProject),
+      participants: filterItemsByProject(dashboard.participants, selectedProject),
+      resources: filterItemsByProject(dashboard.resources, selectedProject),
+      costs: filterItemsByProject(dashboard.costs, selectedProject),
+      risks: filterItemsByProject(dashboard.risks, selectedProject),
+    }),
+    [
+      dashboard.activities,
+      dashboard.costs,
+      dashboard.participants,
+      dashboard.resources,
+      dashboard.risks,
+      selectedProject,
+    ],
+  )
+
+  const entityItems = activeView in entityFields ? dashboard[activeView] : []
   const crudConfig = entityCrudConfigs[activeView]
   const crudActionsForView = crudActions[activeView]
   const crudItems = activeView === 'projects' ? visibleProjects : entityItems
@@ -600,6 +712,8 @@ function App() {
     users: dashboard.users,
   }
 
+  const sidebarActiveView =
+    activeView === 'project-detail' ? 'projects' : activeView === 'indicators' ? 'dashboard' : activeView
   const isDark = theme === 'dark'
 
   if (!authUser) {
@@ -628,9 +742,9 @@ function App() {
     <div className={isDark ? 'dark' : ''}>
       <div className="min-h-screen bg-zinc-50 text-zinc-950 transition-colors dark:bg-zinc-950 dark:text-zinc-50">
       <Sidebar
-        activeView={activeView}
+        activeView={sidebarActiveView}
         navItems={navItems}
-        onNavigate={setActiveView}
+        onNavigate={handleNavigate}
       />
 
       <main className="thin-scrollbar min-h-screen px-4 py-5 sm:px-6 lg:ml-64 lg:px-8 lg:py-7">
@@ -640,11 +754,9 @@ function App() {
             description={currentView.description}
             isDark={isDark}
             onLogout={handleLogout}
-            onSearchChange={setSearch}
             onToggleTheme={() =>
               setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))
             }
-            searchValue={search}
             title={currentView.title}
           />
 
@@ -661,15 +773,55 @@ function App() {
               onClearToolbarState={handleClearToolbarState}
               onFilterChange={handleFilterChange}
               onMenuChange={setActiveToolbarMenu}
-              onNewProject={() => setProjectFormOpen(true)}
+              onNewProject={handleOpenNewProject}
               onRefresh={refreshDashboard}
               onRestoreView={handleRestoreView}
-              onSelectView={setActiveView}
+              onSelectView={handleNavigate}
               onSortChange={setProjectSortOption}
               onToggleSection={handleToggleSection}
               projects={visibleProjects}
               sortOption={projectSortOption}
             />
+          ) : activeView === 'indicators' ? (
+            <IndicatorsPage
+              dashboard={dashboard}
+              errors={requestState.errors}
+              loading={requestState.loading}
+              onBack={() => handleNavigate('dashboard')}
+              onOpenProject={handleOpenProjectDetail}
+            />
+          ) : activeView === 'project-detail' ? (
+            selectedProject ? (
+              <ProjectDetailPage
+                key={selectedProject.id}
+                actions={crudActions}
+                context={crudContext}
+                errors={requestState.errors}
+                loading={requestState.loading}
+                onBack={handleBackToProjects}
+                onDeleteProject={handleDeleteSelectedProject}
+                onEditProject={handleEditProject}
+                onRefresh={refreshDashboard}
+                project={selectedProject}
+                relatedItems={projectRelatedItems}
+              />
+            ) : (
+              <section className="rounded-3xl border border-zinc-200 bg-white px-6 py-12 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
+                  Projeto nao encontrado
+                </h2>
+                <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  O projeto selecionado nao esta mais na lista carregada da API.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleBackToProjects}
+                  className="mt-5 inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  Voltar para projetos
+                </button>
+              </section>
+            )
           ) : crudConfig ? (
             <EntityCrudView
               config={crudConfig}
@@ -679,8 +831,15 @@ function App() {
               loading={requestState.loading}
               onCreate={crudActionsForView.create}
               onDelete={crudActionsForView.delete}
+              onCreateClick={activeView === 'projects' ? handleOpenNewProject : undefined}
               onRefresh={refreshDashboard}
+              onSearchChange={activeView === 'projects' ? setProjectSearch : undefined}
               onUpdate={crudActionsForView.update}
+              onView={activeView === 'projects' ? handleOpenProjectDetail : undefined}
+              searchPlaceholder="Buscar projetos..."
+              searchValue={activeView === 'projects' ? projectSearch : ''}
+              showSearch={activeView === 'projects' && (dashboard.projects.length > 0 || Boolean(projectSearch))}
+              viewLabel="Entrar"
             />
           ) : activeView === 'settings' ? (
             <SettingsPanel />
@@ -692,10 +851,24 @@ function App() {
 
       {projectFormOpen ? (
         <ProjectFormModal
-          onClose={() => setProjectFormOpen(false)}
-          onSubmit={handleCreateProject}
+          key={editingProject ? `edit-${editingProject.id}` : 'new-project'}
+          onClose={() => {
+            setProjectFormOpen(false)
+            setEditingProject(null)
+          }}
+          onSubmit={handleSaveProject}
           open={projectFormOpen}
+          project={editingProject}
           submitting={projectSubmitting}
+        />
+      ) : null}
+      {projectWizardOpen ? (
+        <ProjectWizardModal
+          actions={crudActions}
+          onClose={() => setProjectWizardOpen(false)}
+          onSaved={handleProjectWizardSaved}
+          open={projectWizardOpen}
+          users={dashboard.users}
         />
       ) : null}
       </div>

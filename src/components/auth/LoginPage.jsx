@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { login } from '../../services/api'
+import { useLongRequestFeedback } from '../../hooks/useLongRequestFeedback'
 import { Icon } from '../ui/Icon'
 
 const initialValues = {
@@ -44,6 +45,7 @@ export function LoginPage({ notice, onGoToRegister, onLoginSuccess }) {
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const longRequestMessage = useLongRequestFeedback(submitting)
 
   function updateValue(field, value) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -56,6 +58,10 @@ export function LoginPage({ notice, onGoToRegister, onLoginSuccess }) {
 
   async function handleSubmit(event) {
     event.preventDefault()
+
+    if (submitting) {
+      return
+    }
 
     const nextErrors = validate(values)
     setErrors(nextErrors)
@@ -126,6 +132,7 @@ export function LoginPage({ notice, onGoToRegister, onLoginSuccess }) {
                 <input
                   autoComplete="email"
                   className={inputClass}
+                  disabled={submitting}
                   onChange={(event) => updateValue('email', event.target.value)}
                   type="email"
                   value={values.email}
@@ -138,6 +145,7 @@ export function LoginPage({ notice, onGoToRegister, onLoginSuccess }) {
                 <input
                   autoComplete="current-password"
                   className={inputClass}
+                  disabled={submitting}
                   onChange={(event) => updateValue('senha', event.target.value)}
                   type="password"
                   value={values.senha}
@@ -153,11 +161,22 @@ export function LoginPage({ notice, onGoToRegister, onLoginSuccess }) {
                 <Icon name="login" className="h-4 w-4" />
                 {submitting ? 'Entrando...' : 'Entrar'}
               </button>
+
+              {longRequestMessage ? (
+                <div
+                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {longRequestMessage}
+                </div>
+              ) : null}
             </form>
 
             <div className="mt-5 border-t border-zinc-100 pt-5 text-center dark:border-zinc-800">
               <button
                 className="text-sm font-semibold text-[#5d428e] transition hover:text-[#3f2a64] dark:text-[#d8c9ff] dark:hover:text-white"
+                disabled={submitting}
                 onClick={onGoToRegister}
                 type="button"
               >

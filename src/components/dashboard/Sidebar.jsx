@@ -56,24 +56,6 @@ export function Sidebar({
               Acompanhe prazos, custos e riscos em um unico painel.
             </p>
           </div>
-
-          <div className="space-y-1 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={() => onNavigate('settings')}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50"
-            >
-              <Icon name="settings" className="h-4 w-4" />
-              Configuracoes
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50"
-            >
-              <Icon name="help" className="h-4 w-4" />
-              Ajuda
-            </button>
-          </div>
         </div>
       </div>
     </aside>

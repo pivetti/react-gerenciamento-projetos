@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { registerUser } from '../../services/api'
+import { useLongRequestFeedback } from '../../hooks/useLongRequestFeedback'
 import { Icon } from '../ui/Icon'
 
 const profiles = [
@@ -96,6 +97,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const longRequestMessage = useLongRequestFeedback(submitting)
 
   function updateValue(field, value) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -108,6 +110,10 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
 
   async function handleSubmit(event) {
     event.preventDefault()
+
+    if (submitting) {
+      return
+    }
 
     const nextErrors = validate(values)
     setErrors(nextErrors)
@@ -183,6 +189,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
                   <input
                     autoComplete="name"
                     className={inputClass}
+                    disabled={submitting}
                     onChange={(event) => updateValue('nome', event.target.value)}
                     type="text"
                     value={values.nome}
@@ -195,6 +202,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
                   <input
                     autoComplete="email"
                     className={inputClass}
+                    disabled={submitting}
                     onChange={(event) => updateValue('email', event.target.value)}
                     type="email"
                     value={values.email}
@@ -207,6 +215,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
                   <input
                     autoComplete="new-password"
                     className={inputClass}
+                    disabled={submitting}
                     onChange={(event) => updateValue('senha', event.target.value)}
                     type="password"
                     value={values.senha}
@@ -219,6 +228,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
                   <input
                     autoComplete="tel"
                     className={inputClass}
+                    disabled={submitting}
                     inputMode="numeric"
                     maxLength={15}
                     onChange={(event) => updateValue('telefone', formatPhone(event.target.value))}
@@ -233,6 +243,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
                   Perfil *
                   <select
                     className={inputClass}
+                    disabled={submitting}
                     onChange={(event) => updateValue('perfil', event.target.value)}
                     value={values.perfil}
                   >
@@ -255,11 +266,22 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
                 <Icon name="userPlus" className="h-4 w-4" />
                 {submitting ? 'Criando conta...' : 'Criar conta'}
               </button>
+
+              {longRequestMessage ? (
+                <div
+                  className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {longRequestMessage}
+                </div>
+              ) : null}
             </form>
 
             <div className="mt-5 border-t border-zinc-100 pt-5 text-center dark:border-zinc-800">
               <button
                 className="text-sm font-semibold text-[#5d428e] transition hover:text-[#3f2a64] dark:text-[#d8c9ff] dark:hover:text-white"
+                disabled={submitting}
                 onClick={onGoToLogin}
                 type="button"
               >

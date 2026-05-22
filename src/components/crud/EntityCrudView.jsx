@@ -203,7 +203,7 @@ function EntityFormModal({ config, context, item, mode, onClose, onSubmit, submi
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
 
-  const title = mode === 'edit' ? `Editar ${config.singular}` : `Novo ${config.singular}`
+  const title = mode === 'edit' ? `Editar ${config.singular}` : config.createLabel || `Novo ${config.singular}`
 
   function updateValue(field, value) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -394,12 +394,30 @@ function EmptyState({ config }) {
   return (
     <div className="rounded-3xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900">
       <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
-        Nenhum registro em {config.title.toLowerCase()}
+        {config.emptyTitle || `Nenhum registro em ${config.title.toLowerCase()}`}
       </p>
       <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-        Use o botao Novo para cadastrar o primeiro item.
+        {config.emptyDescription || 'Use o botao Novo para cadastrar o primeiro item.'}
       </p>
     </div>
+  )
+}
+
+function ContextSearch({ onChange, placeholder, value }) {
+  return (
+    <label className="relative min-w-0 flex-1 sm:max-w-xs">
+      <Icon
+        name="search"
+        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+      />
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-10 w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-3 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-[#cdbbf8] focus:ring-4 focus:ring-[#efe8ff] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-[#7c5ac4] dark:focus:ring-[#7c5ac4]/20"
+      />
+    </label>
   )
 }
 
@@ -429,12 +447,13 @@ function formatColumnValue(column, item, context) {
   return rawValue
 }
 
-function EntityCard({ config, context, item, onDelete, onEdit }) {
+function EntityCard({ config, context, item, onDelete, onEdit, onView, viewLabel }) {
+  const [actionsOpen, setActionsOpen] = useState(false)
   const title = config.getTitle(item)
   const description = config.getDescription?.(item) || ''
 
   return (
-    <article className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700">
+    <article className="relative rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-50">{title}</h3>
@@ -460,22 +479,70 @@ function EntityCard({ config, context, item, onDelete, onEdit }) {
         ))}
       </div>
 
-      <div className="mt-5 flex flex-wrap justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => onEdit(item)}
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          Editar
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(item)}
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200 dark:hover:bg-rose-950/60"
-        >
-          Excluir
-        </button>
-      </div>
+      {onView ? (
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onView(item)}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+          >
+            <Icon name="eye" className="h-4 w-4" />
+            {viewLabel}
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setActionsOpen((current) => !current)}
+              className="grid h-10 w-10 place-items-center rounded-xl border border-zinc-200 bg-white text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
+              aria-expanded={actionsOpen}
+              aria-label={`Acoes de ${title}`}
+            >
+              <Icon name="more" className="h-4 w-4" />
+            </button>
+            {actionsOpen ? (
+              <div className="absolute right-0 top-12 z-20 w-40 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-1 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionsOpen(false)
+                    onEdit(item)
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionsOpen(false)
+                    onDelete(item)
+                  }}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                >
+                  Excluir
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onEdit(item)}
+            className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            Editar
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(item)}
+            className="inline-flex h-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200 dark:hover:bg-rose-950/60"
+          >
+            Excluir
+          </button>
+        </div>
+      )}
     </article>
   )
 }
@@ -490,6 +557,14 @@ export function EntityCrudView({
   onDelete,
   onRefresh,
   onUpdate,
+  onView,
+  viewLabel = 'Ver',
+  getFormContext,
+  onCreateClick,
+  onSearchChange,
+  searchPlaceholder = 'Buscar...',
+  searchValue = '',
+  showSearch = false,
 }) {
   const [modal, setModal] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -548,7 +623,14 @@ export function EntityCrudView({
           <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">{config.title}</h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{config.description}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+          {showSearch ? (
+            <ContextSearch
+              onChange={onSearchChange}
+              placeholder={searchPlaceholder}
+              value={searchValue}
+            />
+          ) : null}
           <button
             type="button"
             onClick={onRefresh}
@@ -559,11 +641,11 @@ export function EntityCrudView({
           </button>
           <button
             type="button"
-            onClick={openCreateModal}
+            onClick={onCreateClick || openCreateModal}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
           >
             <Icon name="plus" className="h-4 w-4" />
-            Novo
+            {config.createLabel || 'Novo'}
           </button>
         </div>
       </div>
@@ -593,6 +675,8 @@ export function EntityCrudView({
               item={item}
               onDelete={handleDelete}
               onEdit={openEditModal}
+              onView={onView}
+              viewLabel={viewLabel}
             />
           ))}
         </div>
@@ -603,7 +687,11 @@ export function EntityCrudView({
       {modal ? (
         <EntityFormModal
           config={config}
-          context={context}
+          context={
+            getFormContext
+              ? getFormContext({ context, item: modal.item, mode: modal.mode })
+              : context
+          }
           item={modal.item}
           mode={modal.mode}
           onClose={() => setModal(null)}

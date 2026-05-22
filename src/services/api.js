@@ -18,6 +18,10 @@ const ENDPOINTS = {
 
 const LOGIN_ENDPOINT = '/auth/login'
 const authUserStorageKey = 'projecthub:auth-user'
+const apiTimingStorageKey = 'projecthub:api-timing'
+const API_REQUEST_TIMEOUT_MS = 75_000
+const API_TIMEOUT_MESSAGE =
+  'A API demorou para responder. Tente novamente em alguns instantes.'
 
 const demoData = {
   users: [
@@ -184,6 +188,105 @@ async function parseResponse(response) {
   }
 }
 
+function getNow() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now()
+  }
+
+  return Date.now()
+}
+
+function shouldLogApiTiming() {
+  if (import.meta.env.DEV) {
+    return true
+  }
+
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  try {
+    return window.localStorage.getItem(apiTimingStorageKey) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function logApiTiming({ durationMs, method, path, status, warning = false }) {
+  if (!shouldLogApiTiming()) {
+    return
+  }
+
+  const message = `[API] ${method} ${path} - status ${status} - ${Math.round(durationMs)}ms`
+
+  if (warning) {
+    console.warn(message)
+    return
+  }
+
+  console.info(message)
+}
+
+async function requestJson(path, options = {}) {
+  const {
+    body,
+    headers: customHeaders = {},
+    method = 'GET',
+    timeoutMs = API_REQUEST_TIMEOUT_MS,
+  } = options
+  const headers = { Accept: 'application/json', ...customHeaders }
+  const requestOptions = { method, headers }
+
+  if (body !== undefined) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json'
+    requestOptions.body = typeof body === 'string' ? body : JSON.stringify(body)
+  }
+
+  const controller = new AbortController()
+  let didTimeout = false
+  const startedAt = getNow()
+  const timeoutId = window.setTimeout(() => {
+    didTimeout = true
+    controller.abort()
+  }, timeoutMs)
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...requestOptions,
+      signal: controller.signal,
+    })
+    const payload = await parseResponse(response)
+
+    logApiTiming({
+      durationMs: getNow() - startedAt,
+      method,
+      path,
+      status: response.status,
+      warning: !response.ok,
+    })
+
+    return { payload, response }
+  } catch (error) {
+    const isTimeout = didTimeout || error?.name === 'AbortError'
+
+    logApiTiming({
+      durationMs: getNow() - startedAt,
+      method,
+      path,
+      status: isTimeout ? 'timeout' : 'erro',
+      warning: true,
+    })
+
+    if (isTimeout) {
+      throw new Error(API_TIMEOUT_MESSAGE, { cause: error })
+    }
+
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 function extractCollection(payload) {
   if (Array.isArray(payload)) {
     return payload
@@ -207,19 +310,12 @@ function extractCollection(payload) {
 }
 
 async function apiRequest(path, options = {}) {
-  const { body, method = 'GET' } = options
-  const headers = { Accept: 'application/json' }
-
-  if (body !== undefined) {
-    headers['Content-Type'] = 'application/json'
-  }
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const { body, method = 'GET', timeoutMs } = options
+  const { payload, response } = await requestJson(path, {
     method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body,
+    timeoutMs,
   })
-  const payload = await parseResponse(response)
 
   if (!response.ok) {
     const detail = getErrorDetail(payload)
@@ -355,15 +451,10 @@ export function logout() {
 }
 
 export async function registerUser(payload) {
-  const response = await fetch(`${API_BASE_URL}${ENDPOINTS.users}`, {
+  const { payload: responsePayload, response } = await requestJson(ENDPOINTS.users, {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
+    body: payload,
   })
-  const responsePayload = await parseResponse(response)
 
   if (!response.ok) {
     const detail = getErrorDetail(responsePayload)
@@ -378,15 +469,10 @@ export async function registerUser(payload) {
 export const createUser = registerUser
 
 export async function login(credentials) {
-  const response = await fetch(`${API_BASE_URL}${LOGIN_ENDPOINT}`, {
+  const { payload, response } = await requestJson(LOGIN_ENDPOINT, {
     method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(credentials),
+    body: credentials,
   })
-  const payload = await parseResponse(response)
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -653,6 +739,22 @@ export async function loadDashboardData() {
     errors,
     isDemo,
     loadedAt: new Date().toISOString(),
+  }
+}
+
+export async function prewarmApi() {
+  try {
+    await apiRequest(ENDPOINTS.projects)
+    return { ok: true }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Nao foi possivel preaquecer a API.'
+
+    if (shouldLogApiTiming()) {
+      console.warn(`[API] prewarm falhou: ${message}`)
+    }
+
+    return { ok: false, error: message }
   }
 }
 

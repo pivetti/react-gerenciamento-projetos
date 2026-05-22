@@ -26,6 +26,8 @@ const icons = {
   home: <path d="M4 11 12 4l8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1v-9Z" />,
   reports: <path d="M5 20V4h14v16H5Zm4-4h6M9 12h6M9 8h3" />,
   team: <path d="M8 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.5 20a4.5 4.5 0 0 1 9 0m-1 0a4.5 4.5 0 0 1 9 0" />,
+  eye: <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Zm9 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
+  arrowLeft: <path d="M19 12H5m0 0 6-6m-6 6 6 6" />,
 }
 
 export function Icon({ name, className = 'h-4 w-4' }) {

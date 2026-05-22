@@ -4,10 +4,8 @@ export function DashboardHeader({
   currentUser,
   description,
   isDark,
-  onSearchChange,
   onLogout,
   onToggleTheme,
-  searchValue,
   title,
 }) {
   const userName = String(currentUser?.nome || currentUser?.name || 'Usuario')
@@ -29,24 +27,7 @@ export function DashboardHeader({
         <p className="mt-2 max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
       </div>
 
-      <div className="flex flex-1 items-center gap-3 lg:max-w-3xl">
-        <label className="relative flex-1">
-          <Icon
-            name="search"
-            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-          />
-          <input
-            type="search"
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Buscar projeto, tarefa ou comando"
-            className="h-12 w-full rounded-2xl border border-zinc-200 bg-white pl-11 pr-16 text-sm text-zinc-900 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-[#cdbbf8] focus:ring-4 focus:ring-[#efe8ff] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-[#7c5ac4] dark:focus:ring-[#7c5ac4]/20"
-          />
-          <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-lg border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-400 dark:border-zinc-800 dark:text-zinc-500 sm:block">
-            Ctrl F
-          </span>
-        </label>
-
+      <div className="flex items-center justify-end gap-3">
         <button
           type="button"
           onClick={onToggleTheme}

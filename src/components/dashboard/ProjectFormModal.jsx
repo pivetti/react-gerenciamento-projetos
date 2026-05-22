@@ -13,6 +13,34 @@ const initialValues = {
   percentualConcluido: '0',
 }
 
+function projectInitialValues(project) {
+  if (!project) {
+    return initialValues
+  }
+
+  return {
+    nome: project.nome || project.name || '',
+    descricao: project.descricao || project.description || '',
+    objetivo: project.objetivo || project.objective || '',
+    status: project.status || 'PLANEJADO',
+    prioridade: project.prioridade || project.priority || 'MEDIA',
+    dataInicio: project.dataInicio || project.startDate || '',
+    dataFim: project.dataFim || project.endDate || '',
+    orcamentoPrevisto:
+      project.orcamentoPrevisto !== null && project.orcamentoPrevisto !== undefined
+        ? String(project.orcamentoPrevisto)
+        : project.budget !== null && project.budget !== undefined
+          ? String(project.budget)
+          : '',
+    percentualConcluido:
+      project.percentualConcluido !== null && project.percentualConcluido !== undefined
+        ? String(project.percentualConcluido)
+        : project.completion !== null && project.completion !== undefined
+          ? String(project.completion)
+          : '0',
+  }
+}
+
 const statusOptions = [
   { value: 'PLANEJADO', label: 'Planejado' },
   { value: 'EM_ANDAMENTO', label: 'Em andamento' },
@@ -99,10 +127,11 @@ function buildPayload(values) {
   }
 }
 
-export function ProjectFormModal({ onClose, onSubmit, open, submitting }) {
-  const [values, setValues] = useState(initialValues)
+export function ProjectFormModal({ onClose, onSubmit, open, project, submitting }) {
+  const [values, setValues] = useState(() => projectInitialValues(project))
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
+  const title = project ? 'Editar projeto' : 'Novo projeto'
 
   useEffect(() => {
     if (!open) {
@@ -171,10 +200,10 @@ export function ProjectFormModal({ onClose, onSubmit, open, submitting }) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="project-form-title" className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-              Novo projeto
+              {title}
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Cadastre os dados principais do projeto.
+              {project ? 'Atualize os dados principais do projeto.' : 'Cadastre os dados principais do projeto.'}
             </p>
           </div>
           <button
