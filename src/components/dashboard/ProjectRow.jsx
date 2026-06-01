@@ -38,7 +38,7 @@ export function ProjectRow({ counters, project }) {
         <span>{formatMoney(project.budget)}</span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex w-full items-center gap-4 lg:min-w-32">
         <ProgressBar value={project.completion} />
       </div>
     </article>

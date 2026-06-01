@@ -188,13 +188,13 @@ export function ProjectFormModal({ onClose, onSubmit, open, project, submitting 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/45 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
       onMouseDown={handleBackdropMouseDown}
     >
       <section
         aria-labelledby="project-form-title"
         aria-modal="true"
-        className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-3xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:p-6"
+        className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100vh-2rem)] sm:rounded-3xl sm:p-6"
         role="dialog"
       >
         <div className="flex items-start justify-between gap-4">

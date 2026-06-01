@@ -14,7 +14,7 @@ const iconTone = {
 export function RecommendedCategories({ categories, onSelect }) {
   return (
     <section className="rounded-3xl bg-white/70 p-4 shadow-sm ring-1 ring-zinc-200/70 transition-colors dark:bg-zinc-900/70 dark:ring-zinc-800 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">Categorias recomendadas</h2>
         <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">{categories.length} atalhos</span>
       </div>

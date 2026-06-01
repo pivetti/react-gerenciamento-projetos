@@ -86,8 +86,8 @@ export function LoginPage({ notice, onGoToRegister, onLoginSuccess }) {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-8 text-zinc-950 transition-colors dark:bg-zinc-950 dark:text-zinc-50 sm:py-12">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center justify-center">
+    <main className="min-h-screen bg-zinc-50 px-3 py-6 text-zinc-950 transition-colors dark:bg-zinc-950 dark:text-zinc-50 sm:px-4 sm:py-12">
+      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] max-w-6xl items-center justify-center sm:min-h-[calc(100vh-4rem)]">
         <section className="w-full max-w-md">
           <div className="mb-6 text-center">
             <div className="projecthub-brand text-3xl text-zinc-950 dark:text-zinc-50">
@@ -98,7 +98,7 @@ export function LoginPage({ notice, onGoToRegister, onLoginSuccess }) {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-7">
+          <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-7">
             <div>
               <p className="text-sm font-medium text-[#6b4fa0] dark:text-[#d8c9ff]">
                 Bem-vindo de volta

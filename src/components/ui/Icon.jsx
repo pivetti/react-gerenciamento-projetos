@@ -17,6 +17,7 @@ const icons = {
   filter: <path d="M4 6h16M7 12h10m-7 6h4" />,
   sort: <path d="M8 4v16m0 0-3-3m3 3 3-3m8-13v16m0-16-3 3m3-3 3 3" />,
   hide: <path d="M3 12s3.5-6 9-6c2.1 0 3.9.86 5.34 1.98M21 12s-3.5 6-9 6c-2.1 0-3.9-.86-5.34-1.98M4 4l16 16" />,
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   more: <path d="M5 12h.01M12 12h.01M19 12h.01" />,
   plus: <path d="M12 5v14m-7-7h14" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,

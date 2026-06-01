@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import {
   createActivity,
@@ -30,7 +31,6 @@ import { RegisterPage } from './components/auth/RegisterPage'
 import { ActionToolbar } from './components/dashboard/ActionToolbar'
 import { EntityCrudView } from './components/crud/EntityCrudView'
 import { DashboardHeader } from './components/dashboard/DashboardHeader'
-import { EntityOverview } from './components/dashboard/EntityOverview'
 import { ProjectFormModal } from './components/dashboard/ProjectFormModal'
 import { ProjectDetailPage } from './components/dashboard/ProjectDetailPage'
 import { ProjectWizardModal } from './components/dashboard/ProjectWizardModal'
@@ -61,6 +61,57 @@ const emptyDashboard = {
 }
 
 const hiddenSectionsStorageKey = 'projecthub:hidden-sections'
+
+const viewPaths = {
+  dashboard: '/dashboard',
+  projects: '/projetos',
+  indicators: '/indicadores',
+  activities: '/atividades',
+  participants: '/participantes',
+  resources: '/recursos',
+  costs: '/custos',
+  risks: '/riscos',
+  settings: '/configuracoes',
+}
+
+function getProjectDetailPath(projectId) {
+  return `/projetos/${projectId}`
+}
+
+function getViewPath(view) {
+  return viewPaths[view] || viewPaths.dashboard
+}
+
+function normalizePathname(pathname) {
+  const normalized = pathname.replace(/\/+$/, '')
+  return normalized || '/'
+}
+
+function getRouteState(pathname) {
+  const normalized = normalizePathname(pathname)
+  const projectDetailMatch = normalized.match(/^\/projetos\/([^/]+)$/)
+
+  if (projectDetailMatch) {
+    return {
+      activeView: 'project-detail',
+      selectedProjectId: decodeURIComponent(projectDetailMatch[1]),
+    }
+  }
+
+  const routeEntry = Object.entries(viewPaths).find(([, path]) => path === normalized)
+
+  if (routeEntry) {
+    return {
+      activeView: routeEntry[0],
+      selectedProjectId: null,
+    }
+  }
+
+  return {
+    activeView: 'dashboard',
+    selectedProjectId: null,
+  }
+}
 
 const crudActions = {
   projects: {
@@ -238,21 +289,72 @@ function buildCategories(dashboard) {
       tone: 'zinc',
       view: 'indicators',
     },
-    {
-      label: 'Equipe',
-      hint: 'visao da equipe',
-      icon: 'team',
-      tone: 'cyan',
-      view: 'participants',
-    },
   ]
 }
 
 function buildNavItems(dashboard) {
   return [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', count: dashboard.projects.length },
-    { id: 'projects', label: 'Projetos', icon: 'projects', count: dashboard.projects.length },
-    { id: 'settings', label: 'Configuracoes', icon: 'settings' },
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: 'dashboard',
+      path: viewPaths.dashboard,
+      count: dashboard.projects.length,
+    },
+    {
+      id: 'projects',
+      label: 'Projetos',
+      icon: 'projects',
+      path: viewPaths.projects,
+      count: dashboard.projects.length,
+    },
+    {
+      id: 'activities',
+      label: 'Atividades',
+      icon: 'activities',
+      path: viewPaths.activities,
+      count: dashboard.activities.length,
+    },
+    {
+      id: 'participants',
+      label: 'Participantes',
+      icon: 'participants',
+      path: viewPaths.participants,
+      count: dashboard.participants.length,
+    },
+    {
+      id: 'resources',
+      label: 'Recursos',
+      icon: 'resources',
+      path: viewPaths.resources,
+      count: dashboard.resources.length,
+    },
+    {
+      id: 'costs',
+      label: 'Custos',
+      icon: 'costs',
+      path: viewPaths.costs,
+      count: dashboard.costs.length,
+    },
+    {
+      id: 'risks',
+      label: 'Riscos',
+      icon: 'risks',
+      path: viewPaths.risks,
+      count: dashboard.risks.length,
+    },
+    {
+      id: 'indicators',
+      label: 'Indicadores',
+      icon: 'reports',
+      path: viewPaths.indicators,
+    },
+    {
+      id: 'settings',
+      label: 'Configuracoes',
+      icon: 'settings',
+      path: viewPaths.settings,
+    },
   ]
 }
 
@@ -421,11 +523,10 @@ function SettingsPanel() {
 }
 
 function App() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [authUser, setAuthUser] = useState(() => getStoredAuthUser())
-  const [authView, setAuthView] = useState('login')
   const [authNotice, setAuthNotice] = useState('')
-  const [activeView, setActiveView] = useState('dashboard')
-  const [selectedProjectId, setSelectedProjectId] = useState(null)
   const [projectSearch, setProjectSearch] = useState('')
   const [theme, setTheme] = useState('light')
   const [projectFormOpen, setProjectFormOpen] = useState(false)
@@ -443,6 +544,10 @@ function App() {
     isDemo: false,
     loadedAt: null,
   }))
+  const { activeView, selectedProjectId } = useMemo(
+    () => getRouteState(location.pathname),
+    [location.pathname],
+  )
 
   useEffect(() => {
     prewarmApi()
@@ -473,22 +578,16 @@ function App() {
   }
 
   function handleNavigate(view) {
-    setActiveView(view)
-
-    if (view !== 'project-detail') {
-      setSelectedProjectId(null)
-    }
+    navigate(getViewPath(view))
   }
 
   function handleOpenProjectDetail(project) {
-    setSelectedProjectId(project.id)
-    setActiveView('project-detail')
+    navigate(getProjectDetailPath(project.id))
     setProjectSearch('')
   }
 
   function handleBackToProjects() {
-    setSelectedProjectId(null)
-    setActiveView('projects')
+    navigate(viewPaths.projects)
   }
 
   function handleOpenNewProject() {
@@ -510,27 +609,23 @@ function App() {
 
     setAuthUser(safeUser)
     setAuthNotice('')
-    setAuthView('login')
-    setActiveView('dashboard')
-    setSelectedProjectId(null)
     setProjectWizardOpen(false)
     setRequestState((current) => ({ ...current, errors: [], loading: true }))
+    navigate(viewPaths.dashboard, { replace: true })
   }
 
   function handleRegisterSuccess(message) {
     setAuthNotice(message)
-    setAuthView('login')
+    navigate('/login')
   }
 
   function handleLogout() {
     clearStoredAuthUser()
     setAuthUser(null)
     setAuthNotice('')
-    setAuthView('login')
     setProjectSearch('')
-    setActiveView('dashboard')
-    setSelectedProjectId(null)
     setProjectWizardOpen(false)
+    navigate('/login', { replace: true })
   }
 
   async function handleSaveProject(payload) {
@@ -553,16 +648,14 @@ function App() {
 
   async function handleDeleteSelectedProject(project) {
     await deleteProject(project.id)
-    setSelectedProjectId(null)
-    setActiveView('projects')
+    navigate(viewPaths.projects, { replace: true })
     await refreshDashboard()
   }
 
   async function handleProjectWizardSaved(project) {
     await refreshDashboard()
     setProjectWizardOpen(false)
-    setSelectedProjectId(project.id)
-    setActiveView('project-detail')
+    navigate(getProjectDetailPath(project.id))
     setProjectSearch('')
   }
 
@@ -674,14 +767,6 @@ function App() {
     [activeView, dashboard.projects, projectFilters, projectSortOption, projectSearch],
   )
 
-  const entityFields = {
-    activities: ['title', 'description', 'projectName', 'responsibleName', 'status', 'priority'],
-    participants: ['userName', 'projectName', 'role', 'accessRole'],
-    resources: ['name', 'description', 'projectName', 'type'],
-    costs: ['description', 'projectName', 'activityTitle', 'resourceName', 'type'],
-    risks: ['title', 'description', 'projectName', 'category', 'status'],
-  }
-
   const projectRelatedItems = useMemo(
     () => ({
       activities: filterItemsByProject(dashboard.activities, selectedProject),
@@ -700,10 +785,6 @@ function App() {
     ],
   )
 
-  const entityItems = activeView in entityFields ? dashboard[activeView] : []
-  const crudConfig = entityCrudConfigs[activeView]
-  const crudActionsForView = crudActions[activeView]
-  const crudItems = activeView === 'projects' ? visibleProjects : entityItems
   const crudContext = {
     activities: dashboard.activities,
     participants: dashboard.participants,
@@ -712,28 +793,115 @@ function App() {
     users: dashboard.users,
   }
 
-  const sidebarActiveView =
-    activeView === 'project-detail' ? 'projects' : activeView === 'indicators' ? 'dashboard' : activeView
+  const sidebarActiveView = activeView === 'project-detail' ? 'projects' : activeView
   const isDark = theme === 'dark'
+
+  function renderCrudView(view) {
+    const config = entityCrudConfigs[view]
+    const actions = crudActions[view]
+    const isProjectsView = view === 'projects'
+
+    return (
+      <EntityCrudView
+        config={config}
+        context={crudContext}
+        errors={requestState.errors}
+        items={isProjectsView ? visibleProjects : dashboard[view]}
+        loading={requestState.loading}
+        onCreate={actions.create}
+        onDelete={actions.delete}
+        onCreateClick={isProjectsView ? handleOpenNewProject : undefined}
+        onRefresh={refreshDashboard}
+        onSearchChange={isProjectsView ? setProjectSearch : undefined}
+        onUpdate={actions.update}
+        onView={isProjectsView ? handleOpenProjectDetail : undefined}
+        searchPlaceholder="Buscar projetos..."
+        searchValue={isProjectsView ? projectSearch : ''}
+        showSearch={isProjectsView && (dashboard.projects.length > 0 || Boolean(projectSearch))}
+        viewLabel="Entrar"
+      />
+    )
+  }
+
+  function renderProjectDetail() {
+    if (selectedProject) {
+      return (
+        <ProjectDetailPage
+          key={selectedProject.id}
+          actions={crudActions}
+          context={crudContext}
+          errors={requestState.errors}
+          loading={requestState.loading}
+          onBack={handleBackToProjects}
+          onDeleteProject={handleDeleteSelectedProject}
+          onEditProject={handleEditProject}
+          onRefresh={refreshDashboard}
+          project={selectedProject}
+          relatedItems={projectRelatedItems}
+        />
+      )
+    }
+
+    if (requestState.loading) {
+      return (
+        <section className="rounded-3xl border border-zinc-200 bg-white px-6 py-12 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
+            Carregando projeto...
+          </h2>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            Buscando os dados vinculados a esta rota.
+          </p>
+        </section>
+      )
+    }
+
+    return (
+      <section className="rounded-3xl border border-zinc-200 bg-white px-6 py-12 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
+          Projeto nao encontrado
+        </h2>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          O projeto selecionado nao esta mais na lista carregada da API.
+        </p>
+        <button
+          type="button"
+          onClick={handleBackToProjects}
+          className="mt-5 inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+        >
+          Voltar para projetos
+        </button>
+      </section>
+    )
+  }
 
   if (!authUser) {
     return (
       <div className={isDark ? 'dark' : ''}>
-        {authView === 'register' ? (
-          <RegisterPage
-            onGoToLogin={() => setAuthView('login')}
-            onRegistered={handleRegisterSuccess}
+        <Routes>
+          <Route
+            path="/cadastro"
+            element={
+              <RegisterPage
+                onGoToLogin={() => navigate('/login')}
+                onRegistered={handleRegisterSuccess}
+              />
+            }
           />
-        ) : (
-          <LoginPage
-            notice={authNotice}
-            onGoToRegister={() => {
-              setAuthNotice('')
-              setAuthView('register')
-            }}
-            onLoginSuccess={handleLoginSuccess}
+          <Route
+            path="/login"
+            element={
+              <LoginPage
+                notice={authNotice}
+                onGoToRegister={() => {
+                  setAuthNotice('')
+                  navigate('/cadastro')
+                }}
+                onLoginSuccess={handleLoginSuccess}
+              />
+            }
           />
-        )}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
       </div>
     )
   }
@@ -744,11 +912,10 @@ function App() {
       <Sidebar
         activeView={sidebarActiveView}
         navItems={navItems}
-        onNavigate={handleNavigate}
       />
 
-      <main className="thin-scrollbar min-h-screen px-4 py-5 sm:px-6 lg:ml-64 lg:px-8 lg:py-7">
-        <div className="mx-auto max-w-7xl space-y-7">
+      <main className="thin-scrollbar min-h-screen min-w-0 px-3 py-4 sm:px-6 sm:py-5 lg:ml-64 lg:px-8 lg:py-7">
+        <div className="mx-auto max-w-7xl space-y-5 sm:space-y-7">
           <DashboardHeader
             currentUser={authUser}
             description={currentView.description}
@@ -762,90 +929,54 @@ function App() {
 
           <Notice errors={requestState.errors} isDemo={requestState.isDemo} />
 
-          {activeView === 'dashboard' ? (
-            <ProjectsBoard
-              activeToolbarMenu={activeToolbarMenu}
-              dashboard={dashboard}
-              filters={projectFilters}
-              hiddenSections={hiddenSections}
-              loading={requestState.loading}
-              onClearFilters={handleClearFilters}
-              onClearToolbarState={handleClearToolbarState}
-              onFilterChange={handleFilterChange}
-              onMenuChange={setActiveToolbarMenu}
-              onNewProject={handleOpenNewProject}
-              onRefresh={refreshDashboard}
-              onRestoreView={handleRestoreView}
-              onSelectView={handleNavigate}
-              onSortChange={setProjectSortOption}
-              onToggleSection={handleToggleSection}
-              projects={visibleProjects}
-              sortOption={projectSortOption}
+          <Routes>
+            <Route path="/" element={<Navigate to={viewPaths.dashboard} replace />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProjectsBoard
+                  activeToolbarMenu={activeToolbarMenu}
+                  dashboard={dashboard}
+                  filters={projectFilters}
+                  hiddenSections={hiddenSections}
+                  loading={requestState.loading}
+                  onClearFilters={handleClearFilters}
+                  onClearToolbarState={handleClearToolbarState}
+                  onFilterChange={handleFilterChange}
+                  onMenuChange={setActiveToolbarMenu}
+                  onNewProject={handleOpenNewProject}
+                  onRefresh={refreshDashboard}
+                  onRestoreView={handleRestoreView}
+                  onSelectView={handleNavigate}
+                  onSortChange={setProjectSortOption}
+                  onToggleSection={handleToggleSection}
+                  projects={visibleProjects}
+                  sortOption={projectSortOption}
+                />
+              }
             />
-          ) : activeView === 'indicators' ? (
-            <IndicatorsPage
-              dashboard={dashboard}
-              errors={requestState.errors}
-              loading={requestState.loading}
-              onBack={() => handleNavigate('dashboard')}
-              onOpenProject={handleOpenProjectDetail}
+            <Route path="/projetos" element={renderCrudView('projects')} />
+            <Route path="/projetos/:projectId" element={renderProjectDetail()} />
+            <Route path="/atividades" element={renderCrudView('activities')} />
+            <Route path="/participantes" element={renderCrudView('participants')} />
+            <Route path="/recursos" element={renderCrudView('resources')} />
+            <Route path="/custos" element={renderCrudView('costs')} />
+            <Route path="/riscos" element={renderCrudView('risks')} />
+            <Route
+              path="/indicadores"
+              element={
+                <IndicatorsPage
+                  dashboard={dashboard}
+                  errors={requestState.errors}
+                  loading={requestState.loading}
+                  onBack={() => handleNavigate('dashboard')}
+                  onOpenProject={handleOpenProjectDetail}
+                />
+              }
             />
-          ) : activeView === 'project-detail' ? (
-            selectedProject ? (
-              <ProjectDetailPage
-                key={selectedProject.id}
-                actions={crudActions}
-                context={crudContext}
-                errors={requestState.errors}
-                loading={requestState.loading}
-                onBack={handleBackToProjects}
-                onDeleteProject={handleDeleteSelectedProject}
-                onEditProject={handleEditProject}
-                onRefresh={refreshDashboard}
-                project={selectedProject}
-                relatedItems={projectRelatedItems}
-              />
-            ) : (
-              <section className="rounded-3xl border border-zinc-200 bg-white px-6 py-12 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                <h2 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
-                  Projeto nao encontrado
-                </h2>
-                <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-                  O projeto selecionado nao esta mais na lista carregada da API.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleBackToProjects}
-                  className="mt-5 inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                >
-                  Voltar para projetos
-                </button>
-              </section>
-            )
-          ) : crudConfig ? (
-            <EntityCrudView
-              config={crudConfig}
-              context={crudContext}
-              errors={requestState.errors}
-              items={crudItems}
-              loading={requestState.loading}
-              onCreate={crudActionsForView.create}
-              onDelete={crudActionsForView.delete}
-              onCreateClick={activeView === 'projects' ? handleOpenNewProject : undefined}
-              onRefresh={refreshDashboard}
-              onSearchChange={activeView === 'projects' ? setProjectSearch : undefined}
-              onUpdate={crudActionsForView.update}
-              onView={activeView === 'projects' ? handleOpenProjectDetail : undefined}
-              searchPlaceholder="Buscar projetos..."
-              searchValue={activeView === 'projects' ? projectSearch : ''}
-              showSearch={activeView === 'projects' && (dashboard.projects.length > 0 || Boolean(projectSearch))}
-              viewLabel="Entrar"
-            />
-          ) : activeView === 'settings' ? (
-            <SettingsPanel />
-          ) : (
-            <EntityOverview items={entityItems} title={currentView.title} type={activeView} />
-          )}
+            <Route path="/configuracoes" element={<SettingsPanel />} />
+            <Route path="*" element={<Navigate to={viewPaths.dashboard} replace />} />
+          </Routes>
         </div>
       </main>
 

@@ -426,13 +426,13 @@ export function ProjectDetailPage({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:w-auto"
         >
           <Icon name="arrowLeft" className="h-4 w-4" />
           Voltar para projetos
         </button>
 
-        <div className="relative">
+        <div className="relative self-end sm:self-auto">
           <button
             type="button"
             onClick={() => setActionsOpen((current) => !current)}
@@ -486,12 +486,12 @@ export function ProjectDetailPage({
               <StatusBadge value={project.status} />
               <PriorityBadge value={project.priority} />
             </div>
-            <p className="mt-16 max-w-3xl text-sm leading-6 text-zinc-950 dark:text-zinc-50">
+            <p className="mt-4 max-w-3xl text-sm leading-6 text-zinc-950 dark:text-zinc-50 sm:mt-8 lg:mt-16">
               {project.description || project.objective || project.objetivo || 'Sem descricao cadastrada.'}
             </p>
           </div>
 
-          <div className="min-w-56 space-y-2 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="w-full space-y-2 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:w-64 lg:min-w-56">
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-zinc-500 dark:text-zinc-400">Prazo</span>
               <strong className="text-right font-semibold text-zinc-950 dark:text-zinc-50">
@@ -507,7 +507,7 @@ export function ProjectDetailPage({
         </div>
       </section>
 
-      <div className="overflow-x-auto">
+      <div className="thin-scrollbar overflow-x-auto">
         <div className="inline-flex min-w-full gap-2 rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:min-w-0">
           {tabs.map((tab) => {
             const active = activeTab === tab.id

@@ -234,11 +234,11 @@ function EntityFormModal({ config, context, item, mode, onClose, onSubmit, submi
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/45 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
       <section
         aria-labelledby="entity-form-title"
         aria-modal="true"
-        className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-3xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:p-6"
+        className="max-h-[calc(100dvh-1rem)] w-full max-w-3xl overflow-y-auto rounded-t-3xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-h-[calc(100vh-2rem)] sm:rounded-3xl sm:p-6"
         role="dialog"
       >
         <div className="flex items-start justify-between gap-4">
@@ -392,7 +392,7 @@ function FormField({ context, error, field, onChange, value }) {
 
 function EmptyState({ config }) {
   return (
-    <div className="rounded-3xl border border-dashed border-zinc-200 bg-white px-6 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-3xl border border-dashed border-zinc-200 bg-white px-4 py-10 text-center dark:border-zinc-800 dark:bg-zinc-900 sm:px-6 sm:py-12">
       <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">
         {config.emptyTitle || `Nenhum registro em ${config.title.toLowerCase()}`}
       </p>
@@ -618,8 +618,8 @@ export function EntityCrudView({
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">{config.title}</h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{config.description}</p>
         </div>

@@ -571,7 +571,7 @@ function CollectionList({ empty, items, renderItem }) {
 
 function Stepper({ activeStep, maxVisitedStep, onSelect, stepErrors }) {
   return (
-    <nav className="overflow-x-auto" aria-label="Progresso do cadastro">
+    <nav className="thin-scrollbar overflow-x-auto" aria-label="Progresso do cadastro">
       <ol className="flex min-w-max items-center gap-2 px-1 py-1">
         {steps.map((step, index) => {
           const active = activeStep === index
@@ -585,7 +585,7 @@ function Stepper({ activeStep, maxVisitedStep, onSelect, stepErrors }) {
                 type="button"
                 onClick={() => reachable && onSelect(index)}
                 disabled={!reachable}
-                className={`flex min-w-40 items-center gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                className={`flex min-w-36 items-center gap-2 rounded-2xl border px-3 py-2 text-left transition sm:min-w-40 sm:gap-3 ${
                   active
                     ? 'border-[#cdbbf8] bg-[#efe8ff] text-[#3f2a64] shadow-sm dark:border-[#4d3972] dark:bg-[#34254f] dark:text-[#f0eaff]'
                     : completed
@@ -1789,16 +1789,16 @@ export function ProjectWizardModal({ actions, onClose, onSaved, open, users }) {
       <section
         aria-labelledby="project-wizard-title"
         aria-modal="true"
-        className="mx-auto flex h-screen w-full max-w-7xl flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 sm:h-[calc(100vh-2rem)] sm:rounded-3xl"
+        className="mx-auto flex h-dvh w-full max-w-7xl flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 sm:h-[calc(100vh-2rem)] sm:rounded-3xl"
         role="dialog"
       >
-        <header className="shrink-0 border-b border-zinc-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6">
+        <header className="shrink-0 border-b border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 id="project-wizard-title" className="text-xl font-semibold text-zinc-950 dark:text-zinc-50">
+              <h2 id="project-wizard-title" className="text-lg font-semibold text-zinc-950 dark:text-zinc-50 sm:text-xl">
                 Novo projeto completo
               </h2>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400 sm:text-sm">
                 Cadastre o projeto e seus vinculos em um fluxo guiado.
               </p>
             </div>
@@ -1822,7 +1822,7 @@ export function ProjectWizardModal({ actions, onClose, onSaved, open, users }) {
           </div>
         </header>
 
-        <main className="thin-scrollbar min-h-0 flex-1 overflow-y-auto bg-zinc-50 p-5 dark:bg-zinc-950 sm:p-6">
+        <main className="thin-scrollbar min-h-0 flex-1 overflow-y-auto bg-zinc-50 p-4 dark:bg-zinc-950 sm:p-6">
           {saveError ? (
             <div
               className="mx-auto mb-5 max-w-5xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-100"
@@ -1845,13 +1845,13 @@ export function ProjectWizardModal({ actions, onClose, onSaved, open, users }) {
           {renderStep()}
         </main>
 
-        <footer className="shrink-0 border-t border-zinc-100 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6">
+        <footer className="shrink-0 border-t border-zinc-100 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 sm:p-6">
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:w-auto"
             >
               Cancelar
             </button>
@@ -1861,7 +1861,7 @@ export function ProjectWizardModal({ actions, onClose, onSaved, open, users }) {
                 type="button"
                 onClick={() => goToStep(Math.max(activeStep - 1, 0))}
                 disabled={saving || activeStep === 0}
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:w-auto"
               >
                 Voltar
               </button>
@@ -1870,7 +1870,7 @@ export function ProjectWizardModal({ actions, onClose, onSaved, open, users }) {
                   type="button"
                   onClick={goNext}
                   disabled={primaryDisabled}
-                  className="inline-flex h-10 items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
                 >
                   Avancar
                 </button>
@@ -1879,7 +1879,7 @@ export function ProjectWizardModal({ actions, onClose, onSaved, open, users }) {
                   type="button"
                   onClick={handleSaveComplete}
                   disabled={saving || projectInvalid}
-                  className="inline-flex h-10 items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
                 >
                   {saving ? 'Salvando...' : 'Salvar projeto completo'}
                 </button>

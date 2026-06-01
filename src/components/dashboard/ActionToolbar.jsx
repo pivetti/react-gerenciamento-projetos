@@ -32,7 +32,7 @@ function ToolbarButton({ active = false, children, icon, menuId, onClick }) {
       aria-haspopup={menuId ? 'menu' : undefined}
       aria-controls={menuId}
       onClick={onClick}
-      className={`inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm transition ${
+      className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm transition sm:w-auto ${
         active
           ? 'border-zinc-300 bg-zinc-950 text-white dark:border-zinc-700 dark:bg-white dark:text-zinc-950'
           : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800'
@@ -49,8 +49,8 @@ function MenuPanel({ children, id, wide = false }) {
     <div
       id={id}
       role="menu"
-      className={`absolute left-0 top-12 z-30 rounded-2xl border border-zinc-200 bg-white p-3 text-sm text-zinc-700 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 ${
-        wide ? 'w-80' : 'w-72'
+      className={`fixed inset-x-4 top-28 z-50 max-h-[calc(100dvh-8rem)] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-3 text-sm text-zinc-700 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 lg:absolute lg:inset-x-auto lg:left-0 lg:top-12 lg:max-h-[min(70vh,32rem)] ${
+        wide ? 'lg:w-80' : 'lg:w-72'
       }`}
     >
       {children}
@@ -180,8 +180,8 @@ export function ActionToolbar({
   }
 
   return (
-    <div ref={toolbarRef} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2">
+    <div ref={toolbarRef} className="grid gap-3 sm:flex sm:items-center sm:justify-between">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <div className="relative">
           <ToolbarButton
             active={activeMenu === 'filter' || filtersActive}
@@ -360,7 +360,7 @@ export function ActionToolbar({
       <button
         type="button"
         onClick={onNewProject}
-        className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
       >
         <Icon name="plus" className="h-4 w-4" />
         Novo Projeto

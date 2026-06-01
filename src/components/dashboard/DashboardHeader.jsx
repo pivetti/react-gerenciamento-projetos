@@ -19,15 +19,15 @@ export function DashboardHeader({
     .toUpperCase() || 'PM'
 
   return (
-    <header className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+    <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-3xl">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50 sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
+        <p className="mt-2 max-w-2xl text-xs leading-5 text-zinc-500 dark:text-zinc-400 sm:text-sm">{description}</p>
       </div>
 
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
         <button
           type="button"
           onClick={onToggleTheme}
@@ -37,7 +37,7 @@ export function DashboardHeader({
           <Icon name={isDark ? 'sun' : 'moon'} className="h-4 w-4" />
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <div className="hidden min-w-0 text-right md:block">
             <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{userName}</p>
             {userEmail ? (

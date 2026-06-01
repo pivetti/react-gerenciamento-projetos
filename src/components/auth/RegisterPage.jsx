@@ -3,12 +3,12 @@ import { registerUser } from '../../services/api'
 import { useLongRequestFeedback } from '../../hooks/useLongRequestFeedback'
 import { Icon } from '../ui/Icon'
 
-const profiles = [
-  'ADMINISTRADOR',
-  'GERENTE_PROJETO',
-  'ANALISTA',
-  'MEMBRO_EQUIPE',
-  'STAKEHOLDER',
+const profileOptions = [
+  { value: 'ADMINISTRADOR', label: 'Administrador' },
+  { value: 'GERENTE_PROJETO', label: 'Gerente de projeto' },
+  { value: 'ANALISTA', label: 'Analista' },
+  { value: 'MEMBRO_EQUIPE', label: 'Membro da equipe' },
+  { value: 'STAKEHOLDER', label: 'Stakeholder' },
 ]
 
 const initialValues = {
@@ -66,6 +66,7 @@ function validate(values) {
   const errors = {}
   const email = values.email.trim()
   const phoneDigits = getPhoneDigits(values.telefone)
+  const profile = values.perfil.trim().toUpperCase()
 
   if (!values.nome.trim()) {
     errors.nome = 'Nome e obrigatorio.'
@@ -79,10 +80,14 @@ function validate(values) {
 
   if (!values.senha) {
     errors.senha = 'Senha e obrigatoria.'
+  } else if (values.senha.length < 6) {
+    errors.senha = 'Senha deve ter pelo menos 6 caracteres.'
   }
 
-  if (!values.perfil) {
+  if (!profile) {
     errors.perfil = 'Perfil e obrigatorio.'
+  } else if (!profileOptions.some((option) => option.value === profile)) {
+    errors.perfil = 'Selecione um perfil valido.'
   }
 
   if (phoneDigits && phoneDigits.length < 10) {
@@ -132,7 +137,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
         email: values.email.trim(),
         senha: values.senha,
         telefone: phoneDigits || null,
-        perfil: values.perfil,
+        perfil: values.perfil.trim().toUpperCase(),
       })
       setValues(initialValues)
       onRegistered('Cadastro criado com sucesso. Entre com seu email e senha.')
@@ -148,8 +153,8 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-8 text-zinc-950 transition-colors dark:bg-zinc-950 dark:text-zinc-50 sm:py-12">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl items-center justify-center">
+    <main className="min-h-screen bg-zinc-50 px-3 py-6 text-zinc-950 transition-colors dark:bg-zinc-950 dark:text-zinc-50 sm:px-4 sm:py-12">
+      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] max-w-6xl items-center justify-center sm:min-h-[calc(100vh-4rem)]">
         <section className="w-full max-w-lg">
           <div className="mb-6 text-center">
             <div className="projecthub-brand text-3xl text-zinc-950 dark:text-zinc-50">
@@ -160,7 +165,7 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
             </p>
           </div>
 
-          <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-7">
+          <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:p-7">
             <div>
               <p className="text-sm font-medium text-[#6b4fa0] dark:text-[#d8c9ff]">
                 Primeiro acesso
@@ -248,9 +253,9 @@ export function RegisterPage({ onGoToLogin, onRegistered }) {
                     value={values.perfil}
                   >
                     <option value="">Selecione</option>
-                    {profiles.map((profile) => (
-                      <option key={profile} value={profile}>
-                        {profile}
+                    {profileOptions.map((profile) => (
+                      <option key={profile.value} value={profile.value}>
+                        {profile.label}
                       </option>
                     ))}
                   </select>
